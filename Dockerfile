@@ -8,3 +8,5 @@ RUN apt update && \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
+
+# docker build -t local/builder:ubuntu22 .
