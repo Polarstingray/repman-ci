@@ -1,0 +1,51 @@
+#!/bin/bash
+
+CI_DIR="/srv/docker/ci_runner"
+STAGING_DIR="$HOME/projects/staged"
+
+if [ $# -ne 1 ]; then
+    echo "Usage: stage <project_dir>"
+    exit 1
+fi 
+filename=$1
+project_name=$(basename $filename)
+
+echo "Preparing stage..."
+rm -rf "$CI_DIR/src"
+rm -rf "$CI_DIR/out"
+mkdir -p "$CI_DIR/src"
+mkdir -p "$CI_DIR/out"
+
+echo "Staging..."
+cp -r $filename "$CI_DIR/src/"
+
+echo "Running builder..."
+docker-compose -f "$CI_DIR/docker-compose.yml" up --abort-on-container-exit --exit-code-from ubuntu_ci
+STATUS=$?
+docker-compose -f "$CI_DIR/docker-compose.yml" down -v
+
+if [ $STATUS -ne 0 ]; then
+    echo "Failed to build project $project_name"
+    exit 1
+fi
+
+if [ $? -ne 0 ]; then
+    echo "Failed to build project $project_name"
+    exit 1
+fi
+
+mv -f "$CI_DIR/out/$project_name" "$STAGING_DIR"
+if [ $? -ne 0 ]; then
+    cp -r "$CI_DIR/out/$project_name" "$STAGING_DIR"
+    if [ $? -ne 0 ]; then
+        echo "Failed to move files to staging directory"
+        exit 1
+    fi
+fi
+
+chown -R 1000:1000 "$STAGING_DIR"
+echo "Successfully built and staged project $project_name"
+
+
+
+
