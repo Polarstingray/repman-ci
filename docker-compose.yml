@@ -1,6 +1,6 @@
 services:
   ubuntu_ci:
-    image: ubuntu:24.04
+    image: local/builder:ubuntu22
     command: >
       /bin/bash 
       /startup/start.sh

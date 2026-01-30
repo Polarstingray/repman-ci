@@ -17,7 +17,7 @@ mkdir -p "$CI_DIR/src"
 mkdir -p "$CI_DIR/out"
 
 echo "Staging..."
-cp -r $filename "$CI_DIR/src/"
+cp -rv $filename "$CI_DIR/src/"
 
 echo "Running builder..."
 docker-compose -f "$CI_DIR/docker-compose.yml" up --abort-on-container-exit --exit-code-from ubuntu_ci
