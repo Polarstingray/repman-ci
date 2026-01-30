@@ -1,6 +1,10 @@
 FROM ubuntu:22.04
 
 RUN apt update && \
+    apt install -y python3-pip && \
+    pip install pyinstaller && \
+    pip install --upgrade pip && \
+    pip install --upgrade setuptools && \
     apt install -y --no-install-recommends \
         build-essential \
         git \

@@ -1,5 +1,5 @@
 
-#!/bin/python3
+#/!/bin/python3
 
 
 import os
@@ -13,6 +13,7 @@ parser.add_argument("update_type", type=str, help="Type of update to apply to th
 parser.add_argument("-e", "--env", type=str, help="Path to environment file") 
 
 args = parser.parse_args()
+WORKING_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def update_version(version, update_type) :
     tmp = version.split(".")
@@ -33,29 +34,38 @@ def update_version(version, update_type) :
     return f"{major}.{minor}.{patch}"
 
 
+def package_name(name, md) :
+    return f"{name}_{md.get("version")}_{md.get("os")}_{md.get("arch")}".lower()
+
 def main() :
-    with open("metadata/stage.json", "r") as f:
+    with open(f"{WORKING_DIR}/metadata/stage.json", "r") as f:
         metadata = json.load(f)
         print(metadata)
 
     if args.name not in metadata:
         metadata[args.name] = {
+            "name" : args.name,
             "version": "1.0.0",
-            "os": "Linux",
+            "os": "Ubuntu22",
+            "arch" : "x86_64",
             "dependencies": {}
         }
-        # metadata[args.name]["version"] =  "1.0.0"
-        # metadata[args.name]["os"] = "Linux"
-        # metadata[args.name]["dependencies"] = {}
-        with open("metadata/stage.json", "w") as f:
-            json.dump(metadata, f, indent=4)
-        print(f"Program {args.name} has been staged.")
     else :
         curr_version = metadata[args.name].get("version", "1.0.0")
         version = update_version(curr_version, args.update_type)
         metadata[args.name]["version"] = version
-        print(metadata)
+        metadata[args.name]["arch"] = "x86-64"
 
+    with open(f"{WORKING_DIR}/metadata/stage.json", "w") as f:
+        json.dump(metadata, f, indent=4)
+    print(f"Program {args.name} has been staged.")
+
+    pkg_name = package_name(args.name, metadata[args.name])
+    with open(f"{WORKING_DIR}/out/{pkg_name}_md.json", "w") as f:
+        metadata[args.name] = json.dump(metadata[args.name], f, indent=4)
+
+    print("Package name: ")
+    print(pkg_name)
 
 if __name__ == "__main__":
     main()

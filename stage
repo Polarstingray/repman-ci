@@ -18,6 +18,15 @@ mkdir -p "$CI_DIR/out"
 
 echo "Staging..."
 cp -rv $filename "$CI_DIR/src/"
+echo "Updating metadata..."
+stage_py=$(/bin/python3 "$CI_DIR/stage.py" "$project_name" "patch")
+echo $stage_py
+pkg_name=$(echo "$stage_py" | tail -n 1)
+
+if [ $? -ne 0 ]; then
+    echo "Failed to update $project_name metadata"
+    exit 1
+fi
 
 echo "Running builder..."
 docker-compose -f "$CI_DIR/docker-compose.yml" up --abort-on-container-exit --exit-code-from ubuntu_ci
@@ -28,13 +37,13 @@ if [ $STATUS -ne 0 ]; then
     echo "Failed to build project $project_name"
     exit 1
 fi
+echo "Successfully built $project_name."
 
-if [ $? -ne 0 ]; then
-    echo "Failed to build project $project_name"
-    exit 1
-fi
 
-mv -f "$CI_DIR/out/$project_name" "$STAGING_DIR"
+echo "Moving to stage..."
+metadata_file="$CI_DIR/out/$pkg_name"_md.json
+mv -f "$metadata_file" "$CI_DIR/out/$project_name"
+mv -f "$CI_DIR/out/$project_name" "$STAGING_DIR/$pkg_name"
 if [ $? -ne 0 ]; then
     cp -r "$CI_DIR/out/$project_name" "$STAGING_DIR"
     if [ $? -ne 0 ]; then
@@ -44,8 +53,7 @@ if [ $? -ne 0 ]; then
 fi
 
 chown -R 1000:1000 "$STAGING_DIR"
-echo "Successfully built and staged project $project_name"
-
+echo "Successfully staged $project_name"
 
 
 
