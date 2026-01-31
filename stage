@@ -6,17 +6,18 @@ readonly CI_DIR="/srv/docker/ci_runner"
 readonly DEFAULT_STAGING_DIR="${HOME}/projects/staged"
 
 usage() {
-  echo "Usage: stage <project_dir> [staging_dir]" >&2
+  echo "Usage: stage <project_dir> [staging_dir] [update_type]" >&2
 }
 
 # args
-if [[ $# -lt 1 || $# -gt 2 ]]; then
+if [[ $# -lt 2 || $# -gt 3 ]]; then
   usage
   exit 1
 fi
 
 readonly SOURCE_PATH="$1"
-readonly STAGING_DIR="${2:-$DEFAULT_STAGING_DIR}"
+readonly UPDATE_TYPE="$2"
+readonly STAGING_DIR="${3:-$DEFAULT_STAGING_DIR}"
 
 if [[ ! -d "$SOURCE_PATH" ]]; then
   echo "Source project directory not found: $SOURCE_PATH" >&2
@@ -39,7 +40,7 @@ cp -a -- "$SOURCE_PATH" "$SRC_DIR/"
 # update metadata w/ stage.py
 echo "Updating metadata..."
 PY_OUTPUT=""
-if ! PY_OUTPUT=$(/bin/python3 "$CI_DIR/stage.py" "$PROJECT_NAME" "patch" 2>&1); then
+if ! PY_OUTPUT=$(/bin/python3 "$CI_DIR/stage.py" "$PROJECT_NAME" "$UPDATE_TYPE" 2>&1); then
   echo "$PY_OUTPUT" >&2
   echo "Failed to update $PROJECT_NAME metadata" >&2
   exit 1
