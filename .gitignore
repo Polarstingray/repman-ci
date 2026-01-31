@@ -3,3 +3,4 @@ src/*
 test/
 .env
 metadata/
+__pycache__/
