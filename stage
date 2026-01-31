@@ -1,59 +1,104 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-CI_DIR="/srv/docker/ci_runner"
-STAGING_DIR="$HOME/projects/staged"
+# constants
+readonly CI_DIR="/srv/docker/ci_runner"
+readonly DEFAULT_STAGING_DIR="${HOME}/projects/staged"
 
-if [ $# -ne 1 ]; then
-    echo "Usage: stage <project_dir>"
-    exit 1
-fi 
-filename=$1
-project_name=$(basename $filename)
+usage() {
+  echo "Usage: stage <project_dir> [staging_dir]" >&2
+}
+
+# args
+if [[ $# -lt 1 || $# -gt 2 ]]; then
+  usage
+  exit 1
+fi
+
+readonly SOURCE_PATH="$1"
+readonly STAGING_DIR="${2:-$DEFAULT_STAGING_DIR}"
+
+if [[ ! -d "$SOURCE_PATH" ]]; then
+  echo "Source project directory not found: $SOURCE_PATH" >&2
+  exit 1
+fi
+
+readonly PROJECT_NAME="$(basename -- "$SOURCE_PATH")"
+readonly SRC_DIR="$CI_DIR/src"
+readonly OUT_DIR="$CI_DIR/out"
+
+mkdir -p "$SRC_DIR" "$OUT_DIR" "$STAGING_DIR"
 
 echo "Preparing stage..."
-rm -rf "$CI_DIR/src"
-rm -rf "$CI_DIR/out"
-mkdir -p "$CI_DIR/src"
-mkdir -p "$CI_DIR/out"
+rm -rf -- "$SRC_DIR"/* || true
+rm -rf -- "$OUT_DIR"/* || true
 
 echo "Staging..."
-cp -rv $filename "$CI_DIR/src/"
+cp -a -- "$SOURCE_PATH" "$SRC_DIR/"
+
+# update metadata w/ stage.py
 echo "Updating metadata..."
-stage_py=$(/bin/python3 "$CI_DIR/stage.py" "$project_name" "patch")
-echo $stage_py
-pkg_name=$(echo "$stage_py" | tail -n 1)
-
-if [ $? -ne 0 ]; then
-    echo "Failed to update $project_name metadata"
-    exit 1
+PY_OUTPUT=""
+if ! PY_OUTPUT=$(/bin/python3 "$CI_DIR/stage.py" "$PROJECT_NAME" "patch" 2>&1); then
+  echo "$PY_OUTPUT" >&2
+  echo "Failed to update $PROJECT_NAME metadata" >&2
+  exit 1
 fi
 
+# stage.py prints an informational line and then the package name on the last line
+readonly PKG_NAME="$(printf '%s' "$PY_OUTPUT" | tail -n 1)"
+
+# docker compose controls
+compose_up() {
+  docker-compose -f "$CI_DIR/docker-compose.yml" up --abort-on-container-exit --exit-code-from ubuntu_ci
+}
+compose_down() {
+  docker-compose -f "$CI_DIR/docker-compose.yml" down -v
+}
+trap compose_down EXIT
+
+# run builder
 echo "Running builder..."
-docker-compose -f "$CI_DIR/docker-compose.yml" up --abort-on-container-exit --exit-code-from ubuntu_ci
-STATUS=$?
-docker-compose -f "$CI_DIR/docker-compose.yml" down -v
-
-if [ $STATUS -ne 0 ]; then
-    echo "Failed to build project $project_name"
-    exit 1
+if ! compose_up; then
+  echo "Failed to build project $PROJECT_NAME" >&2
+  exit 1
 fi
-echo "Successfully built $project_name."
+trap - EXIT
+compose_down || true
 
+echo "Successfully built $PROJECT_NAME."
 
+# arrange outputs
 echo "Moving to stage..."
-metadata_file="$CI_DIR/out/$pkg_name"_md.json
-mv -f "$metadata_file" "$CI_DIR/out/$project_name"
-mv -f "$CI_DIR/out/$project_name" "$STAGING_DIR/$pkg_name"
-if [ $? -ne 0 ]; then
-    cp -r "$CI_DIR/out/$project_name" "$STAGING_DIR"
-    if [ $? -ne 0 ]; then
-        echo "Failed to move files to staging directory"
-        exit 1
-    fi
+readonly PROJECT_OUT_DIR="$OUT_DIR/$PROJECT_NAME"
+mkdir -p "$PROJECT_OUT_DIR"
+readonly METADATA_FILE="$OUT_DIR/${PKG_NAME}_md.json"
+if [[ -f "$METADATA_FILE" ]]; then
+  mv -f -- "$METADATA_FILE" "$PROJECT_OUT_DIR/metadata.json"
 fi
 
-chown -R 1000:1000 "$STAGING_DIR"
-echo "Successfully staged $project_name"
+# Compress results
+echo "Compressing..."
+readonly TARBALL="$OUT_DIR/${PKG_NAME}.tar.gz"
+(
+  cd "$OUT_DIR" >/dev/null
+  tar -czf "$TARBALL" "$PROJECT_NAME"
+)
 
+# sync to staging
+echo "Syncing..."
+if ! rsync -a --exclude '.git' -- "$TARBALL" "$STAGING_DIR/$PROJECT_NAME/"; then
+  echo "rsync failed, attempting fallback copy" >&2
+  mkdir -p "$STAGING_DIR/$PROJECT_NAME"
+  if ! cp -a -- "$TARBALL" "$STAGING_DIR/$PROJECT_NAME/"; then
+    echo "Failed to move files to staging directory" >&2
+    exit 1
+  fi
+fi
 
+# attempt to normalize ownership
+if id -u 1000 >/dev/null 2>&1; then
+  chown -R 1000:1000 "$STAGING_DIR" || true
+fi
 
+echo "Successfully staged $PROJECT_NAME"
