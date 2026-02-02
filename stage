@@ -3,7 +3,7 @@ set -euo pipefail
 
 # constants
 readonly CI_DIR="/srv/docker/ci_runner"
-readonly DEFAULT_STAGING_DIR="${HOME}/projects/staged"
+readonly DEFAULT_STAGING_DIR="${HOME}/packages"
 
 usage() {
   echo "Usage: stage <project_dir> [staging_dir] [update_type]" >&2
@@ -28,26 +28,26 @@ readonly PROJECT_NAME="$(basename -- "$SOURCE_PATH")"
 readonly SRC_DIR="$CI_DIR/src"
 readonly OUT_DIR="$CI_DIR/out"
 
-mkdir -p "$SRC_DIR" "$OUT_DIR" "$STAGING_DIR"
+
+echo "Updating main branch with new packages..."
+git -C $STAGING_DIR checkout main
+git -C $STAGING_DIR pull origin main
+
+echo "Switching to staging branch..."
+if git -C $STAGING_DIR rev-parse --verify --quiet refs/heads/staging; then
+  git -C $STAGING_DIR checkout staging
+else
+  echo "Local staging branch does not exist. Creating it."
+  git -C $STAGING_DIR checkout -b staging
+fi
 
 echo "Preparing stage..."
+mkdir -p "$SRC_DIR" "$OUT_DIR" "$STAGING_DIR"
 rm -rf -- "$SRC_DIR"/* || true
 rm -rf -- "$OUT_DIR"/* || true
 
 echo "Staging..."
 cp -a -- "$SOURCE_PATH" "$SRC_DIR/"
-
-# update metadata w/ stage.py
-echo "Updating metadata..."
-PY_OUTPUT=""
-if ! PY_OUTPUT=$(/bin/python3 "$CI_DIR/stage.py" "$PROJECT_NAME" "$UPDATE_TYPE" 2>&1); then
-  echo "$PY_OUTPUT" >&2
-  echo "Failed to update $PROJECT_NAME metadata" >&2
-  exit 1
-fi
-
-# stage.py prints an informational line and then the package name on the last line
-readonly PKG_NAME="$(printf '%s' "$PY_OUTPUT" | tail -n 1)"
 
 # docker compose controls
 compose_up() {
@@ -68,6 +68,20 @@ trap - EXIT
 compose_down || true
 
 echo "Successfully built $PROJECT_NAME."
+
+
+# update metadata w/ stage.py
+echo "Updating metadata..."
+PY_OUTPUT=""
+if ! PY_OUTPUT=$(/bin/python3 "$CI_DIR/stage.py" "$PROJECT_NAME" "$UPDATE_TYPE" 2>&1); then
+  echo "$PY_OUTPUT" >&2
+  echo "Failed to update $PROJECT_NAME metadata" >&2
+  exit 1
+fi
+
+# stage.py prints an informational line and then the package name on the last line
+readonly PKG_NAME="$(printf '%s' "$PY_OUTPUT" | tail -n 1)"
+
 
 # arrange outputs
 echo "Moving to stage..."
@@ -101,5 +115,12 @@ fi
 if id -u 1000 >/dev/null 2>&1; then
   chown -R 1000:1000 "$STAGING_DIR" || true
 fi
+
+echo "Pushing to github repo..."
+
+git -C $STAGING_DIR add .
+git -C $STAGING_DIR commit -m "Staging $PROJECT_NAME"
+git -C $STAGING_DIR push -f origin staging
+
 
 echo "Successfully staged $PROJECT_NAME"
