@@ -49,18 +49,6 @@ rm -rf -- "$OUT_DIR"/* || true
 echo "Staging..."
 cp -a -- "$SOURCE_PATH" "$SRC_DIR/"
 
-# update metadata w/ stage.py
-echo "Updating metadata..."
-PY_OUTPUT=""
-if ! PY_OUTPUT=$(/bin/python3 "$CI_DIR/stage.py" "$PROJECT_NAME" "$UPDATE_TYPE" 2>&1); then
-  echo "$PY_OUTPUT" >&2
-  echo "Failed to update $PROJECT_NAME metadata" >&2
-  exit 1
-fi
-
-# stage.py prints an informational line and then the package name on the last line
-readonly PKG_NAME="$(printf '%s' "$PY_OUTPUT" | tail -n 1)"
-
 # docker compose controls
 compose_up() {
   docker-compose -f "$CI_DIR/docker-compose.yml" up --abort-on-container-exit --exit-code-from ubuntu_ci
@@ -80,6 +68,20 @@ trap - EXIT
 compose_down || true
 
 echo "Successfully built $PROJECT_NAME."
+
+
+# update metadata w/ stage.py
+echo "Updating metadata..."
+PY_OUTPUT=""
+if ! PY_OUTPUT=$(/bin/python3 "$CI_DIR/stage.py" "$PROJECT_NAME" "$UPDATE_TYPE" 2>&1); then
+  echo "$PY_OUTPUT" >&2
+  echo "Failed to update $PROJECT_NAME metadata" >&2
+  exit 1
+fi
+
+# stage.py prints an informational line and then the package name on the last line
+readonly PKG_NAME="$(printf '%s' "$PY_OUTPUT" | tail -n 1)"
+
 
 # arrange outputs
 echo "Moving to stage..."
