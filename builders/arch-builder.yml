@@ -1,0 +1,14 @@
+services:
+  arch_builder:
+    image: local/builder:arch
+    command: >
+      /bin/bash 
+      /startup/start.sh
+    volumes :
+      - in_progress:/in_progress 
+      - /srv/docker/ci_runner/data:/startup
+      - /srv/docker/ci_runner/src:/todo
+      - /srv/docker/ci_runner/out:/complete
+
+volumes:
+  in_progress:
