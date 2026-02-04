@@ -3,7 +3,9 @@ set -euo pipefail
 
 # constants
 readonly CI_DIR="/srv/docker/ci_runner"
+readonly BUILD_DIR="/srv/docker/ci_runner/builders"
 readonly DEFAULT_STAGING_DIR="${HOME}/packages"
+readonly DEFAULT_BUILDER="ubuntu"
 
 usage() {
   echo "Usage: stage <project_dir> [staging_dir] [update_type]" >&2
@@ -51,21 +53,28 @@ cp -a -- "$SOURCE_PATH" "$SRC_DIR/"
 
 # docker compose controls
 compose_up() {
-  docker-compose -f "$CI_DIR/docker-compose.yml" up --abort-on-container-exit --exit-code-from ubuntu_ci
+  builder="${1:-$DEFAULT_BUILDER}"
+  docker-compose -f "$BUILD_DIR/$builder-builder.yml" up --abort-on-container-exit --exit-code-from ubuntu_ci
+
 }
+
 compose_down() {
-  docker-compose -f "$CI_DIR/docker-compose.yml" down -v
+  builder="${1:-$DEFAULT_BUILDER}"
+  docker-compose -f "$BUILD_DIR/$builder-builder.yml" down --abort-on-container-exit --exit-code-from ubuntu_ci
 }
 trap compose_down EXIT
 
 # run builder
 echo "Running builder..."
-if ! compose_up; then
+
+BUILDER="ubuntu"
+
+if ! compose_up "$BUILDER"; then
   echo "Failed to build project $PROJECT_NAME" >&2
   exit 1
 fi
 trap - EXIT
-compose_down || true
+compose_down "$BUILDER" || true
 
 echo "Successfully built $PROJECT_NAME."
 

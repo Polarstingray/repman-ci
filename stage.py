@@ -38,6 +38,17 @@ def safe_write_json(path: str, data) -> None:
             except OSError:
                 pass
 
+def index_mdata(md: dict) -> dict:
+    metadata = {
+        "name": md.get("name"),
+        "latest": md.get("version"),
+        "versions" : {
+
+        }
+    }
+    pass
+
+
 
 def update_version(version: str, update_type: str) -> str:
     parts = version.split(".")
