@@ -5,14 +5,14 @@ set -euo pipefail
 readonly CI_DIR="/srv/docker/ci_runner"
 readonly BUILD_DIR="/srv/docker/ci_runner/builders"
 readonly DEFAULT_STAGING_DIR="${HOME}/packages"
-readonly DEFAULT_BUILDER="ubuntu"
+readonly DEFAULT_BUILDER="arch"
 
 usage() {
   echo "Usage: stage <project_dir> [staging_dir] [update_type]" >&2
 }
 
 # args
-if [[ $# -lt 2 || $# -gt 3 ]]; then
+if [[ $# -lt 2 || $# -gt 4 ]]; then
   usage
   exit 1
 fi
@@ -20,6 +20,7 @@ fi
 readonly SOURCE_PATH="$1"
 readonly UPDATE_TYPE="$2"
 readonly STAGING_DIR="${3:-$DEFAULT_STAGING_DIR}"
+readonly BUILDER="${4:-$DEFAULT_BUILDER}"
 
 if [[ ! -d "$SOURCE_PATH" ]]; then
   echo "Source project directory not found: $SOURCE_PATH" >&2
@@ -53,28 +54,23 @@ cp -a -- "$SOURCE_PATH" "$SRC_DIR/"
 
 # docker compose controls
 compose_up() {
-  builder="${1:-$DEFAULT_BUILDER}"
-  docker-compose -f "$BUILD_DIR/$builder-builder.yml" up --abort-on-container-exit --exit-code-from ubuntu_ci
-
+  docker-compose -f "$BUILD_DIR/$BUILDER-builder.yml" up --abort-on-container-exit # --exit-code-from builder
 }
 
 compose_down() {
-  builder="${1:-$DEFAULT_BUILDER}"
-  docker-compose -f "$BUILD_DIR/$builder-builder.yml" down --abort-on-container-exit --exit-code-from ubuntu_ci
+  docker-compose -f "$BUILD_DIR/$BUILDER-builder.yml" down -v 
 }
 trap compose_down EXIT
 
 # run builder
 echo "Running builder..."
-
-BUILDER="ubuntu"
-
-if ! compose_up "$BUILDER"; then
+echo " $BUILDER..." >&2
+if ! compose_up ; then
   echo "Failed to build project $PROJECT_NAME" >&2
   exit 1
 fi
 trap - EXIT
-compose_down "$BUILDER" || true
+compose_down || true
 
 echo "Successfully built $PROJECT_NAME."
 

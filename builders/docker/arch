@@ -1,0 +1,7 @@
+FROM archlinux:latest
+
+RUN pacman -Sy --noconfirm base-devel && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+

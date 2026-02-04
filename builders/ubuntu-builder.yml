@@ -1,5 +1,5 @@
 services:
-  ubuntu_ci:
+  ubuntu_builder:
     image: local/builder:ubuntu22
     command: >
       /bin/bash 
