@@ -74,7 +74,6 @@ if ! compose_up ; then
 fi
 trap - EXIT
 compose_down || true
-
 echo "Successfully built $PROJECT_NAME."
 
 

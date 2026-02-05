@@ -70,7 +70,7 @@ def update_version(version: str, update_type: str) -> str:
 
 
 def package_name(name: str, md: dict) -> str:
-    return f"{name}_{md.get('version')}_{md.get('os')}_{md.get('arch')}".lower()
+    return f"{name}_v{md.get('version')}_{md.get('os')}_{md.get('arch')}".lower()
 
 
 def main():
