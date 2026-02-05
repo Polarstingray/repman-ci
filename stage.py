@@ -82,6 +82,12 @@ def main():
         choices=["major", "minor", "patch"],
         help="Type of update to apply to the version.",
     )
+    parser.add_argument(
+        "-b", "--builder", 
+        type=str,
+        default=OS_DEFAULT,
+        help="Name of the builder to use for the program.",
+    )
     parser.add_argument("-e", "--env", type=str, help="Path to environment file")
     parser.add_argument(
         "--metadata-file",
