@@ -4,3 +4,6 @@ test/
 .env
 metadata/
 __pycache__/
+*cache*
+*ci.key*
+*.key*

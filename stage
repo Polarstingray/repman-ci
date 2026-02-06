@@ -2,13 +2,15 @@
 set -euo pipefail
 
 # constants
-readonly CI_DIR="/srv/docker/ci_runner"
-readonly BUILD_DIR="/srv/docker/ci_runner/builders"
-readonly DEFAULT_STAGING_DIR="${HOME}/packages"
-readonly DEFAULT_BUILDER="arch"
+# To-do don't hardcode source env file
+source "/srv/docker/ci_runner/.env"
+readonly CI_DIR="${WORKING_DIR}"
+readonly BUILD_DIR="$CI_DIR/builders"
+readonly DEF_STAGING_DIR="${DEFAULT_STAGE}"
+readonly DEF_BUILDER="${DEFAULT_BUILDER}"
 
 usage() {
-  echo "Usage: stage <project_dir> [staging_dir] [update_type]" >&2
+  echo "Usage: stage <project_dir> [staging_dir] [update_type] [builder_type]" >&2
 }
 
 # args
@@ -19,8 +21,9 @@ fi
 
 readonly SOURCE_PATH="$1"
 readonly UPDATE_TYPE="$2"
-readonly STAGING_DIR="${3:-$DEFAULT_STAGING_DIR}"
-readonly BUILDER="${4:-$DEFAULT_BUILDER}"
+readonly BUILDER="${3:-$DEF_BUILDER}"
+readonly STAGING_DIR="${4:-$DEF_STAGING_DIR}"
+readonly SIG_PASS="${SIG_PASS}"
 
 if [[ ! -d "$SOURCE_PATH" ]]; then
   echo "Source project directory not found: $SOURCE_PATH" >&2
@@ -32,17 +35,17 @@ readonly SRC_DIR="$CI_DIR/src"
 readonly OUT_DIR="$CI_DIR/out"
 
 
-echo "Updating main branch with new packages..."
-git -C $STAGING_DIR checkout main
-git -C $STAGING_DIR pull origin main
+# echo "Updating main branch with new packages..."
+# git -C $STAGING_DIR checkout main
+# git -C $STAGING_DIR pull origin main
 
-echo "Switching to staging branch..."
-if git -C $STAGING_DIR rev-parse --verify --quiet refs/heads/staging; then
-  git -C $STAGING_DIR checkout staging
-else
-  echo "Local staging branch does not exist. Creating it."
-  git -C $STAGING_DIR checkout -b staging
-fi
+# echo "Switching to staging branch..."
+# if git -C $STAGING_DIR rev-parse --verify --quiet refs/heads/staging; then
+#   git -C $STAGING_DIR checkout staging
+# else
+#   echo "Local staging branch does not exist. Creating it."
+#   git -C $STAGING_DIR checkout -b staging
+# fi
 
 echo "Preparing stage..."
 mkdir -p "$SRC_DIR" "$OUT_DIR" "$STAGING_DIR"
@@ -54,7 +57,7 @@ cp -a -- "$SOURCE_PATH" "$SRC_DIR/"
 
 # docker compose controls
 compose_up() {
-  docker-compose -f "$BUILD_DIR/$BUILDER-builder.yml" up --abort-on-container-exit # --exit-code-from builder
+  docker-compose -f "$BUILD_DIR/$BUILDER-builder.yml" up --abort-on-container-exit --exit-code-from "$BUILDER"_builder
 }
 
 compose_down() {
@@ -71,7 +74,6 @@ if ! compose_up ; then
 fi
 trap - EXIT
 compose_down || true
-
 echo "Successfully built $PROJECT_NAME."
 
 
@@ -105,9 +107,15 @@ readonly TARBALL="$OUT_DIR/${PKG_NAME}.tar.gz"
   tar -czf "$TARBALL" "$PROJECT_NAME"
 )
 
+echo "Creating signature..."
+echo "$SIG_PASS" | minisign -S \
+  -s "$CI_DIR/ci.key" \
+  -m "$TARBALL"
+
+
 # sync to staging
 echo "Syncing..."
-if ! rsync -a --exclude '.git' -- "$TARBALL" "$STAGING_DIR/$PROJECT_NAME/"; then
+if ! rsync -a --exclude '.git' -- "$TARBALL"* "$STAGING_DIR/$PROJECT_NAME/"; then
   echo "rsync failed, attempting fallback copy" >&2
   mkdir -p "$STAGING_DIR/$PROJECT_NAME"
   if ! cp -a -- "$TARBALL" "$STAGING_DIR/$PROJECT_NAME/"; then
@@ -121,11 +129,11 @@ if id -u 1000 >/dev/null 2>&1; then
   chown -R 1000:1000 "$STAGING_DIR" || true
 fi
 
-echo "Pushing to github repo..."
+# echo "Pushing to github repo..."
 
-git -C $STAGING_DIR add .
-git -C $STAGING_DIR commit -m "Staging $PROJECT_NAME"
-git -C $STAGING_DIR push -f origin staging
+# git -C $STAGING_DIR add .
+# git -C $STAGING_DIR commit -m "Staging $PROJECT_NAME"
+# git -C $STAGING_DIR push -f origin staging
 
 
 echo "Successfully staged $PROJECT_NAME"

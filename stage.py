@@ -70,7 +70,7 @@ def update_version(version: str, update_type: str) -> str:
 
 
 def package_name(name: str, md: dict) -> str:
-    return f"{name}_{md.get('version')}_{md.get('os')}_{md.get('arch')}".lower()
+    return f"{name}_v{md.get('version')}_{md.get('os')}_{md.get('arch')}".lower()
 
 
 def main():
@@ -81,6 +81,12 @@ def main():
         type=str,
         choices=["major", "minor", "patch"],
         help="Type of update to apply to the version.",
+    )
+    parser.add_argument(
+        "-b", "--builder", 
+        type=str,
+        default=OS_DEFAULT,
+        help="Name of the builder to use for the program.",
     )
     parser.add_argument("-e", "--env", type=str, help="Path to environment file")
     parser.add_argument(
