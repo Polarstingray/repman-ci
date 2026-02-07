@@ -4,14 +4,26 @@ import os
 import json
 import argparse
 import tempfile
+from dotenv import load_dotenv
+import sys
 
-WORKING_DIR = os.path.dirname(os.path.abspath(__file__))
-OS_DEFAULT = "Ubuntu22"
-ARCH_DEFAULT = "x86-64"
+WORKING_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(WORKING_DIR)
+from core.index import * 
 
-DEFAULT_METADATA_FILE = os.path.join(WORKING_DIR, "metadata", "stage.json")
+
+ENV_FILE = os.path.join(WORKING_DIR, ".env")
+
+load_dotenv(ENV_FILE)
+
+DEFAULT_BUILDER="ubuntu_amd64"
+DEFAULT_METADATA_FILE = os.path.join(WORKING_DIR, "metadata", "index.json")
 DEFAULT_OUT_DIR = os.path.join(WORKING_DIR, "out")
 
+
+def parse_builder(builder: str) -> tuple :
+    os, arch = builder.split("_")
+    return os, arch
 
 def ensure_environment(metadata_file: str, out_dir: str) -> None:
     os.makedirs(os.path.dirname(metadata_file), exist_ok=True)
@@ -38,40 +50,6 @@ def safe_write_json(path: str, data) -> None:
             except OSError:
                 pass
 
-def index_mdata(md: dict) -> dict:
-    metadata = {
-        "name": md.get("name"),
-        "latest": md.get("version"),
-        "versions" : {
-
-        }
-    }
-    pass
-
-
-
-def update_version(version: str, update_type: str) -> str:
-    parts = version.split(".")
-    if len(parts) != 3:
-        raise ValueError("Version must be in 'major.minor.patch' format")
-    major, minor, patch = map(int, parts)
-    if update_type == "major":
-        major += 1
-        minor = 0
-        patch = 0
-    elif update_type == "minor":
-        minor += 1
-        patch = 0
-    elif update_type == "patch":
-        patch += 1
-    else:
-        raise ValueError("Invalid update type")
-    return f"{major}.{minor}.{patch}"
-
-
-def package_name(name: str, md: dict) -> str:
-    return f"{name}_v{md.get('version')}_{md.get('os')}_{md.get('arch')}".lower()
-
 
 def main():
     parser = argparse.ArgumentParser(description="CI Runner")
@@ -79,13 +57,13 @@ def main():
     parser.add_argument(
         "update_type",
         type=str,
-        choices=["major", "minor", "patch"],
+        choices=["major", "minor", "patch", "new"],
         help="Type of update to apply to the version.",
     )
     parser.add_argument(
         "-b", "--builder", 
         type=str,
-        default=OS_DEFAULT,
+        default=DEFAULT_BUILDER,
         help="Name of the builder to use for the program.",
     )
     parser.add_argument("-e", "--env", type=str, help="Path to environment file")
@@ -106,6 +84,11 @@ def main():
     metadata_file = args.metadata_file
     out_dir = args.out_dir
 
+    if args.env:
+        load_dotenv(args.env)
+    else:
+        load_dotenv(ENV_FILE)
+
     try:
         ensure_environment(metadata_file, out_dir)
         with open(metadata_file, "r") as f:
@@ -114,19 +97,19 @@ def main():
         print(f"Failed to initialize environment or read metadata: {exc}")
         raise SystemExit(1)
 
+
+    op_sys, arch = parse_builder(args.builder)
+    version = "1.0.0"
     if args.name not in metadata:
-        metadata[args.name] = {
-            "name": args.name,
-            "version": "1.0.0",
-            "os": OS_DEFAULT,
-            "arch": ARCH_DEFAULT,
-            "dependencies": {},
-        }
-    else:
-        curr_version = metadata[args.name].get("version", "1.0.0")
-        version = update_version(curr_version, args.update_type)
-        metadata[args.name]["version"] = version
-        metadata[args.name]["arch"] = ARCH_DEFAULT
+        create_index_mdata(metadata, args.name, version, op_sys, arch) # create version 1
+    else :
+        curr_version = get_version(metadata, args.name, op_sys, arch)
+
+        # metadata[args.name].get("versions", version)
+        print(f"curr version: {curr_version}")
+        if curr_version is not None:
+            version = update_version(curr_version, args.update_type)
+        add_version(metadata, args.name, version, op_sys, arch)
 
     try:
         safe_write_json(metadata_file, metadata)
@@ -134,14 +117,15 @@ def main():
         print(f"Failed to write metadata file: {exc}")
         raise SystemExit(1)
 
-    pkg_name = package_name(args.name, metadata[args.name])
+    pkg_md = create_pkg_md(args.name, version, op_sys, arch)
+    pkg_name = package_name(args.name, pkg_md)
     out_path = os.path.join(out_dir, f"{pkg_name}_md.json")
     try:
-        safe_write_json(out_path, metadata[args.name])
+        safe_write_json(out_path, pkg_md)
     except Exception as exc:
         print(f"Failed to write output file: {exc}")
         raise SystemExit(1)
-
+    
     print(f"Program {args.name} has been staged.")
     print(pkg_name)
 
