@@ -1,5 +1,5 @@
 services:
-  arch_builder:
+  arch_amd64_builder:
     image: local/builder:arch
     command: >
       /bin/bash 

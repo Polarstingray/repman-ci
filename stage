@@ -8,9 +8,10 @@ readonly CI_DIR="${WORKING_DIR}"
 readonly BUILD_DIR="$CI_DIR/builders"
 readonly DEF_STAGING_DIR="${DEFAULT_STAGE}"
 readonly DEF_BUILDER="${DEFAULT_BUILDER}"
+readonly CORE="$CI_DIR/core"
 
 usage() {
-  echo "Usage: stage <project_dir> [staging_dir] [update_type] [builder_type]" >&2
+  echo "Usage: stage <project_dir> [update_type] [builder_type] [staging_dir]" >&2
 }
 
 # args
@@ -80,7 +81,7 @@ echo "Successfully built $PROJECT_NAME."
 # update metadata w/ stage.py
 echo "Updating metadata..."
 PY_OUTPUT=""
-if ! PY_OUTPUT=$(/bin/python3 "$CI_DIR/stage.py" "$PROJECT_NAME" "$UPDATE_TYPE" 2>&1); then
+if ! PY_OUTPUT=$(/bin/python3 "$CORE/stage.py" "$PROJECT_NAME" "$UPDATE_TYPE" -b "$BUILDER" 2>&1); then
   echo "$PY_OUTPUT" >&2
   echo "Failed to update $PROJECT_NAME metadata" >&2
   exit 1
@@ -115,7 +116,16 @@ echo "$SIG_PASS" | minisign -S \
 
 # sync to staging
 echo "Syncing..."
-if ! rsync -a --exclude '.git' -- "$TARBALL"* "$STAGING_DIR/$PROJECT_NAME/"; then
+if ! rsync -a --exclude '.git' -- "$TARBALL.minisig" "$STAGING_DIR/$PROJECT_NAME/signatures"; then
+  echo "rsync failed, attempting fallback copy" >&2
+  mkdir -p "$STAGING_DIR/$PROJECT_NAME"
+  if ! cp -a -- "$TARBALL.minisig" "$STAGING_DIR/$PROJECT_NAME/signatures"; then
+    echo "Failed to move signature to staging directory" >&2
+    exit 1
+  fi
+fi
+echo "Successfully synced signature" || true
+if ! rsync -a --exclude '.git' -- "$TARBALL" "$STAGING_DIR/$PROJECT_NAME/"; then
   echo "rsync failed, attempting fallback copy" >&2
   mkdir -p "$STAGING_DIR/$PROJECT_NAME"
   if ! cp -a -- "$TARBALL" "$STAGING_DIR/$PROJECT_NAME/"; then
@@ -123,6 +133,7 @@ if ! rsync -a --exclude '.git' -- "$TARBALL"* "$STAGING_DIR/$PROJECT_NAME/"; the
     exit 1
   fi
 fi
+echo "Successfully synced artifacts" || true
 
 # attempt to normalize ownership
 if id -u 1000 >/dev/null 2>&1; then
@@ -136,4 +147,4 @@ fi
 # git -C $STAGING_DIR push -f origin staging
 
 
-echo "Successfully staged $PROJECT_NAME"
+echo "Successfully staged $PROJECT_NAME" || true
