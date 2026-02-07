@@ -9,7 +9,7 @@ import sys
 
 WORKING_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(WORKING_DIR)
-from core.index import add_version, create_index_mdata, create_pkg_md, get_version, package_name
+from core.index import * 
 
 
 ENV_FILE = os.path.join(WORKING_DIR, ".env")
@@ -49,26 +49,6 @@ def safe_write_json(path: str, data) -> None:
                 os.remove(tmp_path)
             except OSError:
                 pass
-
-
-
-def update_version(version: str, update_type: str) -> str:
-    parts = version.split(".")
-    if len(parts) != 3:
-        raise ValueError("Version must be in 'major.minor.patch' format")
-    major, minor, patch = map(int, parts)
-    if update_type == "major":
-        major += 1
-        minor = 0
-        patch = 0
-    elif update_type == "minor":
-        minor += 1
-        patch = 0
-    elif update_type == "patch":
-        patch += 1
-    else:
-        raise ValueError("Invalid update type")
-    return f"{major}.{minor}.{patch}"
 
 
 def main():

@@ -75,6 +75,24 @@ def add_version(metadata, name, version, os, arch):
     return metadata
 
 
+def update_version(version: str, update_type: str) -> str:
+    parts = version.split(".")
+    if len(parts) != 3:
+        raise ValueError("Version must be in 'major.minor.patch' format")
+    major, minor, patch = map(int, parts)
+    if update_type == "major":
+        major += 1
+        minor = 0
+        patch = 0
+    elif update_type == "minor":
+        minor += 1
+        patch = 0
+    elif update_type == "patch":
+        patch += 1
+    else:
+        raise ValueError("Invalid update type")
+    return f"{major}.{minor}.{patch}"
+
 def create_pkg_md(name, version, os, arch, dep=None) -> dict:
     """Create a package metadata document for a single build artifact."""
     if dep is None:
