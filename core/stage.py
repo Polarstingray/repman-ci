@@ -57,7 +57,7 @@ def main():
     parser.add_argument(
         "update_type",
         type=str,
-        choices=["major", "minor", "patch"],
+        choices=["major", "minor", "patch", "new"],
         help="Type of update to apply to the version.",
     )
     parser.add_argument(
