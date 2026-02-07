@@ -11,9 +11,8 @@ WORKING_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(WORKING_DIR)
 from core.index import add_version, create_index_mdata, create_pkg_md, get_version, package_name
 
-# the mock-0.3.1 dir contains testcase.py, testutils.py & mock.py
 
-ENV_FILE = os.path.join(WORKING_DIR, "env", ".env")
+ENV_FILE = os.path.join(WORKING_DIR, ".env")
 
 load_dotenv(ENV_FILE)
 
@@ -51,15 +50,6 @@ def safe_write_json(path: str, data) -> None:
             except OSError:
                 pass
 
-def index_mdata(md: dict) -> dict:
-    metadata = {
-        "name": md.get("name"),
-        "latest": md.get("version"),
-        "versions" : {
-
-        }
-    }
-    pass
 
 
 def update_version(version: str, update_type: str) -> str:
@@ -131,30 +121,15 @@ def main():
     op_sys, arch = parse_builder(args.builder)
     version = "1.0.0"
     if args.name not in metadata:
-        create_index_mdata(metadata, args.name, version, arch, op_sys) # create version 1
+        create_index_mdata(metadata, args.name, version, op_sys, arch) # create version 1
     else :
-        curr_version = get_version(metadata, args.name, arch, op_sys)
+        curr_version = get_version(metadata, args.name, op_sys, arch)
 
         # metadata[args.name].get("versions", version)
         print(f"curr version: {curr_version}")
-        if args.update_type != "new" and curr_version is not None : 
+        if curr_version is not None:
             version = update_version(curr_version, args.update_type)
         add_version(metadata, args.name, version, op_sys, arch)
-
-
-
-    #     metadata[args.name] = {
-    #         "name": args.name,
-    #         "version": "1.0.0",
-    #         "os": os,
-    #         "arch": arch,
-    #         "dependencies": {},
-    #     }
-    # else:
-    #     curr_version = metadata[args.name].get("version", "1.0.0")
-    #     version = update_version(curr_version, args.update_type)
-    #     metadata[args.name]["version"] = version
-    #     metadata[args.name]["arch"] = arch
 
     try:
         safe_write_json(metadata_file, metadata)
