@@ -19,6 +19,7 @@ load_dotenv(ENV_FILE)
 DEFAULT_BUILDER="ubuntu_amd64"
 DEFAULT_METADATA_FILE = os.path.join(WORKING_DIR, "metadata", "index.json")
 DEFAULT_OUT_DIR = os.path.join(WORKING_DIR, "out")
+PKG_URL = os.getenv("GITHUB_REPO", "https://example.com/package")
 
 
 def parse_builder(builder: str) -> tuple :
@@ -33,7 +34,7 @@ def ensure_environment(metadata_file: str, out_dir: str) -> None:
             json.dump({}, f, indent=4)
 
 
-def run_stage(name: str, update_type: str, builder: str, env: str, metadata_file: str, out_dir: str) -> None:
+def main() -> None:
     parser = argparse.ArgumentParser(description="CI Runner")
     parser.add_argument("name", type=str, help="Name of program being staged.")
     parser.add_argument(
@@ -82,16 +83,17 @@ def run_stage(name: str, update_type: str, builder: str, env: str, metadata_file
 
     op_sys, arch = parse_builder(args.builder)
     version = "1.0.0"
+    pkg_url=f"{PKG_URL}/{package_name(args.name, version, op_sys, arch)}"
     if args.name not in metadata:
-        create_index_mdata(metadata, args.name, version, op_sys, arch) # create version 1
+        create_index_mdata(metadata, args.name, version, op_sys, arch, pkg_url) # create version 1
     else :
         curr_version = get_version(metadata, args.name, op_sys, arch)
-
+        pkg_url=f"{PKG_URL}/{package_name(args.name, version, op_sys, arch)}"
         # metadata[args.name].get("versions", version)
         print(f"curr version: {curr_version}")
         if curr_version is not None:
             version = update_version(curr_version, args.update_type)
-        add_version(metadata, args.name, version, op_sys, arch)
+        add_version(metadata, args.name, version, op_sys, arch, pkg_url)
 
     try:
         safe_write_json(metadata_file, metadata)
@@ -100,7 +102,7 @@ def run_stage(name: str, update_type: str, builder: str, env: str, metadata_file
         raise SystemExit(1)
 
     pkg_md = create_pkg_md(args.name, version, op_sys, arch)
-    pkg_name = package_name(args.name, pkg_md)
+    pkg_name = package_name(args.name, version, op_sys, arch)
     out_path = os.path.join(out_dir, f"{pkg_name}_md.json")
     try:
         safe_write_json(out_path, pkg_md)
