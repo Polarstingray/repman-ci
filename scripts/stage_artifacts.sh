@@ -12,7 +12,10 @@ echo "Staging directory: $STAGING"
 echo "Project name: $PROJECT_NAME"
 
 mkdir -p "$STAGING/$PROJECT_NAME/signatures" || true
+INDEX="$WORKING_DIR/$INDEX_DIR/$DEFAULY_INDEX"
 
+rsyng -a "$WORKING_DIR/$PUB_KEY1" "$STAGING/keys/wyse-1_pub/"
+rsync -a "$INDEX" "$STAGING/index/"
 rsync -a "$WORKING_DIR/out/${PKG}.tar.gz" "$STAGING/$PROJECT_NAME/"
 rsync -a "$WORKING_DIR/out/${PKG}.tar.gz."* "$STAGING/$PROJECT_NAME/signatures/"
 

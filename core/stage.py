@@ -83,13 +83,12 @@ def main() -> None:
 
     op_sys, arch = parse_builder(args.builder)
     version = "1.0.0"
-    pkg_url=f"{PKG_URL}/{package_name(args.name, version, op_sys, arch)}"
+    pkg_url=f"{PKG_URL}/{args.name}-v{version}"
     if args.name not in metadata:
         create_index_mdata(metadata, args.name, version, op_sys, arch, pkg_url) # create version 1
     else :
         curr_version = get_version(metadata, args.name, op_sys, arch)
-        pkg_url=f"{PKG_URL}/{package_name(args.name, version, op_sys, arch)}"
-        # metadata[args.name].get("versions", version)
+        pkg_url=f"{PKG_URL}/{args.name}-v{curr_version}"
         print(f"curr version: {curr_version}")
         if curr_version is not None:
             version = update_version(curr_version, args.update_type)
