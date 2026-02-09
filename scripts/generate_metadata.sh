@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source "/srv/docker/ci_runner/.env"
+source "/srv/docker/ci_runner/config.env"
 
 PROJECT="$1"
 UPDATE_TYPE="$2"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source "/srv/docker/ci_runner/.env"
+source "/srv/docker/ci_runner/config.env"
 
 PROJECT="$1"
 BUILDER="${2:-$DEFAULT_BUILDER}"

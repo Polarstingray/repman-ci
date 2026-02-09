@@ -3,7 +3,7 @@ set -euo pipefail
 
 # constants
 # To-do don't hardcode source env file
-source "/srv/docker/ci_runner/.env"
+source "/srv/docker/ci_runner/config.env"
 readonly CI_DIR="${WORKING_DIR}"
 readonly BUILD_DIR="$CI_DIR/builders"
 readonly DEF_STAGING_DIR="${DEFAULT_STAGE}"

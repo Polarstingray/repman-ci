@@ -12,7 +12,7 @@ sys.path.append(WORKING_DIR)
 from core.index import * 
 
 
-ENV_FILE = os.path.join(WORKING_DIR, ".env")
+ENV_FILE = os.path.join(WORKING_DIR, "config.env")
 
 load_dotenv(ENV_FILE)
 
@@ -33,7 +33,7 @@ def ensure_environment(metadata_file: str, out_dir: str) -> None:
             json.dump({}, f, indent=4)
 
 
-def main():
+def run_stage(name: str, update_type: str, builder: str, env: str, metadata_file: str, out_dir: str) -> None:
     parser = argparse.ArgumentParser(description="CI Runner")
     parser.add_argument("name", type=str, help="Name of program being staged.")
     parser.add_argument(
