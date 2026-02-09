@@ -28,22 +28,23 @@ echo "Builder : $BUILDER"
 echo "Stage   : $STAGING_DIR"
 echo
 
+TASKS=6
 # -------------------------------
 # 1. Prepare workspace
 # -------------------------------
-echo "[1/5] Preparing stage"
+echo "[1/$TASKS] Preparing stage"
 "$SCRIPT_DIR/prepare_stage.sh" "$PROJECT_PATH"
 
 # -------------------------------
 # 2. Build artifact
 # -------------------------------
-echo "[2/5] Building artifact"
+echo "[2/$TASKS] Building artifact"
 "$SCRIPT_DIR/build_artifact.sh" "$PROJECT_NAME" "$BUILDER"
 
 # -------------------------------
 # 3. Generate metadata
 # -------------------------------
-echo "[3/5] Generating metadata"
+echo "[3/$TASKS] Generating metadata"
 PKG_NAME="$(
   "$SCRIPT_DIR/generate_metadata.sh" \
     "$PROJECT_NAME" \
@@ -56,14 +57,21 @@ echo "Package resolved as: $PKG_NAME"
 # -------------------------------
 # 4. Package + sign
 # -------------------------------
-echo "[4/5] Packaging and signing"
+echo "[4/$TASKS] Packaging and signing"
 "$SCRIPT_DIR/package_sign.sh" "$PKG_NAME"
 
 # -------------------------------
 # 5. Stage artifacts
 # -------------------------------
-echo "[5/5] Staging artifacts"
+echo "[5/$TASKS] Staging artifacts"
 "$SCRIPT_DIR/stage_artifacts.sh" "$PKG_NAME" "$STAGING_DIR"
+
+# -------------------------------
+# 6. publish github release
+# -------------------------------
+echo "[6/$TASKS] Staging artifacts"
+"$SCRIPT_DIR/publish_github.sh" "$PKG_NAME" "$STAGING_DIR"
+
 
 echo
 echo "=== Publish pipeline complete ==="
