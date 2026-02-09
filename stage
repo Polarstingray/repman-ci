@@ -113,9 +113,13 @@ echo "$SIG_PASS" | minisign -S \
   -s "$CI_DIR/ci.key" \
   -m "$TARBALL"
 
+echo "Creating sha256 hash..."
+SHA256=$(sha256sum "$TARBALL" | awk '{print $1}')
+echo "$SHA256" > "$TARBALL.sha256"
+
 
 # sync to staging
-echo "Syncing..."
+echo "Syncing signature..." || true
 if ! rsync -a --exclude '.git' -- "$TARBALL.minisig" "$STAGING_DIR/$PROJECT_NAME/signatures"; then
   echo "rsync failed, attempting fallback copy" >&2
   mkdir -p "$STAGING_DIR/$PROJECT_NAME"
@@ -125,6 +129,17 @@ if ! rsync -a --exclude '.git' -- "$TARBALL.minisig" "$STAGING_DIR/$PROJECT_NAME
   fi
 fi
 echo "Successfully synced signature" || true
+echo "Syncing sha256..." || true
+if ! rsync -a --exclude '.git' -- "$TARBALL.sha256" "$STAGING_DIR/$PROJECT_NAME/signatures"; then
+  echo "rsync failed, attempting fallback copy" >&2
+  mkdir -p "$STAGING_DIR/$PROJECT_NAME"
+  if ! cp -a -- "$TARBALL.sha256" "$STAGING_DIR/$PROJECT_NAME/signatures"; then
+    echo "Failed to move sha256 to staging directory" >&2
+    exit 1
+  fi
+fi
+echo "Successfully synced sha256" || true
+echo "Syncing artifacts..." || true
 if ! rsync -a --exclude '.git' -- "$TARBALL" "$STAGING_DIR/$PROJECT_NAME/"; then
   echo "rsync failed, attempting fallback copy" >&2
   mkdir -p "$STAGING_DIR/$PROJECT_NAME"

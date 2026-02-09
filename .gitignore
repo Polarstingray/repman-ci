@@ -2,6 +2,7 @@ out/*
 src/*
 test/
 .env
+*.env*
 metadata/
 __pycache__/
 *cache*
