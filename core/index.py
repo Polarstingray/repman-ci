@@ -1,4 +1,9 @@
+from json import dump
+from os import fdopen, fsync, makedirs, path, remove, replace
+from tempfile import mkstemp
+
 PACKAGE_DIR = "https://example.com/package"
+
 
 # Index helpers for package metadata management
 
@@ -21,13 +26,24 @@ def create_index_mdata(metadata, name, version, os, arch) -> dict:
                 "targets": {
                     f"{os}_{arch}": {
                         "url": f"{PACKAGE_DIR}",
-                        "signature": "",
+                        "signature": f"{package_name(name, None, version, os, arch, True)}",
+                        "sha256" : ""
                     }
                 }
             }
         },
     }
     return metadata
+
+def edit_target(metadata, name, version, os, arch, key, value) -> bool:
+    """Edit a target for a given os/arch version."""
+    if metadata.get(name) is None or metadata[name]["versions"].get(version) is None: return False
+    if metadata[name]["versions"][version]["targets"].get(f"{os}_{arch}") is None : return False
+    if not metadata[name]["versions"][version]["targets"].get(f"{os}_{arch}").get(key): return False
+
+    metadata[name]["versions"][version]["targets"][f"{os}_{arch}"][key] = value
+    return True
+
 
 
 def is_latest(metadata, name, version) -> bool:
@@ -54,7 +70,7 @@ def add_version(metadata, name, version, os, arch):
             "targets": {
                 f"{os}_{arch}": {
                     "url": f"{PACKAGE_DIR}",
-                    "signature": "",
+                    "signature": f"{package_name(name, None, version, os, arch, True)}",
                 }
             }
         }
@@ -67,7 +83,7 @@ def add_version(metadata, name, version, os, arch):
         ):
             metadata[name]["versions"][version]["targets"][f"{os}_{arch}"] = {
                 "url": f"{PACKAGE_DIR}",
-                "signature": "",
+                "signature": f"{package_name(name, None, version, os, arch, True)}",
             }
         else:
             print(f"Version {version} already exists for program {name}.")
@@ -93,7 +109,7 @@ def update_version(version: str, update_type: str) -> str:
         raise ValueError("Invalid update type")
     return f"{major}.{minor}.{patch}"
 
-def create_pkg_md(name, version, os, arch, dep=None) -> dict:
+def create_pkg_md(name: str, version: str, os: str, arch: str, dep: dict=None) -> dict:
     """Create a package metadata document for a single build artifact."""
     if dep is None:
         dep = {}
@@ -107,11 +123,17 @@ def create_pkg_md(name, version, os, arch, dep=None) -> dict:
     return metadata
 
 
-def package_name(name: str, md: dict) -> str:
-    return f"{name}_v{md.get('version')}_{md.get('os')}_{md.get('arch')}".lower()
+# Fix me: not sure if hardcoding .tar.gz.minisig here is a good idea.
+def package_name(name: str, md: dict=None, version: str="", os: str="", arch: str="", sig: bool=False) -> str:
+    """Create a package name from the package name and metadata."""
+    ext = ".tar.gz.minisig" if sig else ""
+    if md is None:
+        if version == "" or os == "" or arch == "": return None
+        return f"{name}_v{version}_{os}_{arch}{ext}".lower()
+    return f"{name}_v{md.get('version')}_{md.get('os')}_{md.get('arch')}{ext}".lower()
 
 
-def greater_version(v1, v2) -> bool:
+def greater_version(v1: str, v2: str) -> bool:
     """Return True if v1 is strictly greater than v2. If v2 is None, True."""
     if v2 is None:
         return True
@@ -134,12 +156,27 @@ def get_version(md, name, os, arch) -> str:
 
     for ver in md[name]["versions"].keys():
         for os_arch in md[name]["versions"][ver]["targets"].keys():
-            if (
-                os_arch == f"{os}_{arch}" and greater_version(ver, latest_version)
-            ):
+            if (os_arch == f"{os}_{arch}" and greater_version(ver, latest_version)):
                 latest_version = ver
 
     return latest_version
+
+def safe_write_json(file_path: str, data) -> None:
+    directory = path.dirname(file_path) or "."
+    makedirs(directory, exist_ok=True)
+    fd, tmp_path = mkstemp(prefix=".tmp_", dir=directory)
+    try:
+        with fdopen(fd, "w") as tmp_file:
+            dump(data, tmp_file, indent=4)
+            tmp_file.flush()
+            fsync(tmp_file.fileno())
+        replace(tmp_path, file_path)
+    finally:
+        if path.exists(tmp_path):
+            try:
+                remove(tmp_path)
+            except OSError:
+                pass
 
 
 def main():

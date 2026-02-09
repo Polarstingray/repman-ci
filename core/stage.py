@@ -12,7 +12,7 @@ sys.path.append(WORKING_DIR)
 from core.index import * 
 
 
-ENV_FILE = os.path.join(WORKING_DIR, ".env")
+ENV_FILE = os.path.join(WORKING_DIR, "config.env")
 
 load_dotenv(ENV_FILE)
 
@@ -33,25 +33,7 @@ def ensure_environment(metadata_file: str, out_dir: str) -> None:
             json.dump({}, f, indent=4)
 
 
-def safe_write_json(path: str, data) -> None:
-    directory = os.path.dirname(path) or "."
-    os.makedirs(directory, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(prefix=".tmp_", dir=directory)
-    try:
-        with os.fdopen(fd, "w") as tmp_file:
-            json.dump(data, tmp_file, indent=4)
-            tmp_file.flush()
-            os.fsync(tmp_file.fileno())
-        os.replace(tmp_path, path)
-    finally:
-        if os.path.exists(tmp_path):
-            try:
-                os.remove(tmp_path)
-            except OSError:
-                pass
-
-
-def main():
+def run_stage(name: str, update_type: str, builder: str, env: str, metadata_file: str, out_dir: str) -> None:
     parser = argparse.ArgumentParser(description="CI Runner")
     parser.add_argument("name", type=str, help="Name of program being staged.")
     parser.add_argument(
