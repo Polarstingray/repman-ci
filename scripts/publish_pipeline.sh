@@ -28,7 +28,7 @@ echo "Builder : $BUILDER"
 echo "Stage   : $STAGING_DIR"
 echo
 
-TASKS=6
+TASKS=7
 # -------------------------------
 # 1. Prepare workspace
 # -------------------------------
@@ -61,15 +61,21 @@ echo "[4/$TASKS] Packaging and signing"
 "$SCRIPT_DIR/package_sign.sh" "$PKG_NAME"
 
 # -------------------------------
+# 4. signing + hashing index
+# -------------------------------
+echo "[5/$TASKS] Signing + hashing index"
+"$SCRIPT_DIR/sign_index.sh" 
+
+# -------------------------------
 # 5. Stage artifacts
 # -------------------------------
-echo "[5/$TASKS] Staging artifacts"
+echo "[6/$TASKS] Staging artifacts"
 "$SCRIPT_DIR/stage_artifacts.sh" "$PKG_NAME" "$STAGING_DIR"
 
 # -------------------------------
 # 6. publish github release
 # -------------------------------
-echo "[6/$TASKS] Staging artifacts"
+echo "[7/$TASKS] Staging artifacts"
 "$SCRIPT_DIR/publish_github.sh" "$PKG_NAME" "$STAGING_DIR"
 
 

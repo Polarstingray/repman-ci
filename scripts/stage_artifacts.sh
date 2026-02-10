@@ -13,7 +13,7 @@ echo "Project name: $PROJECT_NAME"
 
 mkdir -p "$STAGING/$PROJECT_NAME/signatures" || true
 mkdir -p "$STAGING/$PROJECT_NAME/keys" || true
-INDEX="$WORKING_DIR/$INDEX_DIR/$DEFAULY_INDEX"
+INDEX="$WORKING_DIR/$INDEX_DIR/$INDEX_FILE"
 
 rsync -a "$WORKING_DIR/$PUB_KEY1" "$STAGING/keys/"
 rsync -a "$INDEX" "$STAGING/index/"

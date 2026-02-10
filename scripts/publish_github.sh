@@ -14,6 +14,8 @@ STAGING_DIR="$2"
 PROJECT_NAME=$(echo "$PKG_NAME" | cut -d "_" -f 1)
 
 PKG_DIR="$STAGING_DIR/$PROJECT_NAME"
+INDEX_DIR="$STAGING_DIR/index"
+KEY_DIR="$STAGING_DIR/keys"
 
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
@@ -76,3 +78,13 @@ gh release upload "$TAG" \
   --clobber
 
 echo "GitHub release published successfully"
+
+# -------------------------------
+# Update index
+# -------------------------------
+git add "$INDEX_DIR/"
+git add "$KEY_DIR/"
+git commit -m "Publish GitHub release for $NAME $VERSION"
+git push origin main
+
+echo "Index updated successfully"
