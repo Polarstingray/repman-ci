@@ -16,7 +16,7 @@ ENV_FILE = os.path.join(WORKING_DIR, "config.env")
 
 load_dotenv(ENV_FILE)
 
-DEFAULT_BUILDER="ubuntu_amd64"
+DEFAULT_BUILDER=os.getenv("DEFAULT_BUILDER", "ubuntu_amd64")
 DEFAULT_METADATA_FILE = os.path.join(WORKING_DIR, "metadata", "index.json")
 DEFAULT_OUT_DIR = os.path.join(WORKING_DIR, "out")
 PKG_URL = os.getenv("GITHUB_REPO", "https://example.com/package")
@@ -88,10 +88,10 @@ def main() -> None:
         create_index_mdata(metadata, args.name, version, op_sys, arch, pkg_url) # create version 1
     else :
         curr_version = get_version(metadata, args.name, op_sys, arch)
-        pkg_url=f"{PKG_URL}/{args.name}-v{curr_version}"
         print(f"curr version: {curr_version}")
         if curr_version is not None:
             version = update_version(curr_version, args.update_type)
+        pkg_url=f"{PKG_URL}/{args.name}-v{version}"
         add_version(metadata, args.name, version, op_sys, arch, pkg_url)
 
     try:
