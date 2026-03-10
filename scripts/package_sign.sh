@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source "/srv/docker/ci_runner/config.env"
+source "/opt/homelab/ci_runner/config.env"
 
 PKG_NAME="$1"
 CI_DIR="$WORKING_DIR"

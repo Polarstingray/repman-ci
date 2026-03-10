@@ -2,7 +2,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source "/srv/docker/ci_runner/config.env"
+source "/opt/homelab/ci_runner/config.env"
 
 usage() {
   echo "Usage:"
