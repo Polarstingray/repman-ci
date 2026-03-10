@@ -10,13 +10,13 @@ CI_DIR="$WORKING_DIR"
 BUILD_DIR="$CI_DIR/builders"
 
 compose_up() {
-  docker-compose -f "$BUILD_DIR/$BUILDER-builder.yml" up \
+  docker compose -f "$BUILD_DIR/$BUILDER-builder.yml" up \
     --abort-on-container-exit \
     --exit-code-from "${BUILDER}_builder"
 }
 
 compose_down() {
-  docker-compose -f "$BUILD_DIR/$BUILDER-builder.yml" down -v
+  docker compose -f "$BUILD_DIR/$BUILDER-builder.yml" down -v
 }
 
 trap compose_down EXIT
