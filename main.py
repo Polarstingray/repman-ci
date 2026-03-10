@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import sys
+import shutil
 from subprocess import run, CalledProcessError
 from typing import Optional
 
@@ -116,7 +117,9 @@ def cmd_stage(args: argparse.Namespace) -> int:
     if args.out_dir:
         cmd += ["--out-dir", args.out_dir]
     try:
-        run(cmd, check=True)
+        env = os.environ.copy()
+        env["PYTHONUNBUFFERED"] = "1"
+        run(cmd, check=True, env=env)
         return 0
     except CalledProcessError as exc:
         print(f"stage failed: {exc}")
@@ -126,7 +129,10 @@ def cmd_stage(args: argparse.Namespace) -> int:
 def cmd_run(args: argparse.Namespace) -> int:
     if not os.path.isfile(PUBLISH_PIPELINE):
         raise SystemExit(f"Pipeline script not found: {PUBLISH_PIPELINE}")
-    cmd = ["bash", PUBLISH_PIPELINE, args.project_path, args.update_type]
+    if shutil.which("stdbuf"):
+        cmd = ["stdbuf", "-oL", "-eL", "bash", PUBLISH_PIPELINE, args.project_path, args.update_type]
+    else:
+        cmd = ["bash", PUBLISH_PIPELINE, args.project_path, args.update_type]
     if args.builder:
         cmd.append(args.builder)
     if args.stage_dir:
