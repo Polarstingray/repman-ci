@@ -20,6 +20,6 @@ echo "$SIG_PASS" | minisign -S \
   -s "$CI_DIR/ci.key" \
   -m "$TARBALL"
 
-sha256sum "$TARBALL" | awk '{print $1}' > "$TARBALL.sha256"
+sha256sum "$TARBALL" > "$TARBALL.sha256"
 
 echo "Packaged and signed $PKG_NAME"
