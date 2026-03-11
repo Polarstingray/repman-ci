@@ -17,7 +17,12 @@ INDEX="$WORKING_DIR/$INDEX_DIR/$INDEX_FILE"
 
 rsync -a "$WORKING_DIR/$PUB_KEY1" "$STAGING/keys/"
 rsync -a "$INDEX" "$STAGING/index/"
+rsync -a "$INDEX.sha256" "$STAGING/index/"
+rsync -a "$INDEX.minisig" "$STAGING/index/"
+
 rsync -a "$WORKING_DIR/out/${PKG}.tar.gz" "$STAGING/$PROJECT_NAME/"
-rsync -a "$WORKING_DIR/out/${PKG}.tar.gz."* "$STAGING/$PROJECT_NAME/signatures/"
+rsync -a "$WORKING_DIR/out/${PKG}.tar.gz.minisig" "$STAGING/$PROJECT_NAME/signatures/"
+rsync -a "$WORKING_DIR/out/${PKG}.tar.gz.sha256" "$STAGING/$PROJECT_NAME/signatures"
+
 
 echo "Artifacts staged for $PKG"
