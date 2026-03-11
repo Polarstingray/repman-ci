@@ -11,6 +11,6 @@ echo "$SIG_PASS" | minisign -S \
   -s "$CI_DIR/ci.key" \
   -m "$INDEX"
 
-sha256sum "$INDEX" | awk '{print $1}' > "$INDEX.sha256"
+sha256sum "$INDEX" > "$INDEX.sha256"
 
 echo "$INDEX_FILE signed succescfully"
