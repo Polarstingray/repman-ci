@@ -3,7 +3,7 @@ set -euo pipefail
 source "/opt/homelab/ci_runner/config.env"
 
 CI_DIR="$WORKING_DIR"
-INDEX="$INDEX_FILE"
+INDEX="$WORKING_DIR/$INDEX_DIR/$INDEX_FILE"
 
 cd "$DEFAULT_STAGE/index/"
 
@@ -13,4 +13,4 @@ echo "$SIG_PASS" | minisign -S \
 
 sha256sum "$INDEX" > "$INDEX.sha256"
 
-echo "$INDEX_FILE signed succescfully"
+echo "$INDEX_FILE signed successfully"
