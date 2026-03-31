@@ -2,7 +2,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source "/opt/homelab/ci_runner/config.env"
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+source "$SCRIPT_DIR/../config.env"
 
 usage() {
   echo "Usage:"
@@ -61,21 +62,21 @@ echo "[4/$TASKS] Packaging and signing"
 "$SCRIPT_DIR/package_sign.sh" "$PKG_NAME"
 
 # -------------------------------
-# 4. signing + hashing index
+# 5. Sign + hash index
 # -------------------------------
 echo "[5/$TASKS] Signing + hashing index"
-"$SCRIPT_DIR/sign_index.sh" 
+"$SCRIPT_DIR/sign_index.sh"
 
 # -------------------------------
-# 5. Stage artifacts
+# 6. Stage artifacts
 # -------------------------------
 echo "[6/$TASKS] Staging artifacts"
 "$SCRIPT_DIR/stage_artifacts.sh" "$PKG_NAME" "$STAGING_DIR"
 
 # -------------------------------
-# 6. publish github release
+# 7. Publish GitHub release
 # -------------------------------
-echo "[7/$TASKS] Staging artifacts"
+echo "[7/$TASKS] Publishing GitHub release"
 "$SCRIPT_DIR/publish_github.sh" "$PKG_NAME" "$STAGING_DIR"
 
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source "/opt/homelab/ci_runner/config.env"
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+source "$SCRIPT_DIR/../config.env"
 
 PROJECT="$1"
 UPDATE_TYPE="$2"
@@ -15,6 +16,8 @@ PY_OUTPUT=$(
 )
 
 PKG_NAME="$(echo "$PY_OUTPUT" | tail -n 1)"
+
+mkdir -p "$OUT_DIR/$PROJECT"
 
 mv "$OUT_DIR/${PKG_NAME}_md.json" \
    "$OUT_DIR/$PROJECT/metadata.json"

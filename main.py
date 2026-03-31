@@ -11,7 +11,6 @@ from typing import Optional
 from dotenv import load_dotenv
 
 WORKING_DIR = os.path.dirname(os.path.abspath(__file__))
-INDEX_PATH = os.path.join(WORKING_DIR, "metadata", "index.json")
 STAGE_SCRIPT = os.path.join(WORKING_DIR, "core", "stage.py")
 PUBLISH_PIPELINE = os.path.join(WORKING_DIR, "scripts", "publish_pipeline.sh")
 BUILDERS_DIR = os.path.join(WORKING_DIR, "builders")
@@ -30,6 +29,10 @@ from core.index import (  # noqa: E402
 )
 
 load_dotenv(ENV_FILE)
+
+_index_dir = os.getenv("INDEX_DIR", "metadata")
+_index_file = os.getenv("INDEX_FILE", "index.json")
+INDEX_PATH = os.path.join(WORKING_DIR, _index_dir, _index_file)
 
 
 def _load_index(path: str = INDEX_PATH) -> dict:
@@ -95,9 +98,14 @@ def cmd_get_version(args: argparse.Namespace) -> int:
 
 def cmd_get_env(_: argparse.Namespace) -> int:
     keys = [
+        "WORKING_DIR",
         "DEFAULT_BUILDER",
+        "DEFAULT_STAGE",
         "GITHUB_REPO",
         "SIG_PASS",
+        "INDEX_DIR",
+        "INDEX_FILE",
+        "PUB_KEY1",
     ]
     for k in keys:
         v = os.getenv(k, "")
