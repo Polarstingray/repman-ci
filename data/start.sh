@@ -31,7 +31,7 @@ fi
 
 # Move job into working directory atomically
 :
-mv "$SRC_JOB_DIR" "$WORKING_DIR/"
+cp -a "$SRC_JOB_DIR" "$WORKING_DIR/"
 
 SETUP_SH="$JOB_WORK_DIR/setup.sh"
 if [[ ! -f "$SETUP_SH" ]]; then

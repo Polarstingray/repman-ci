@@ -105,6 +105,9 @@ for BUILDER in "${BUILDER_LIST[@]}"; do
   echo ""
   echo "--- Builder: $BUILDER ---"
 
+  # Clear previous builder's output to avoid cross-builder contamination
+  [[ "$DRY_RUN" != "1" ]] && rm -rf "$WORKING_DIR/out/$PROJECT_NAME"
+
   if  "$SCRIPT_DIR/build_artifact.sh" "$PROJECT_NAME" "$BUILDER" && \
       PKG="$("$SCRIPT_DIR/generate_metadata.sh" "$PROJECT_NAME" "$UPDATE_TYPE" "$BUILDER")" && \
       "$SCRIPT_DIR/package_sign.sh" "$PKG"; then
