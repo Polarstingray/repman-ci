@@ -7,9 +7,12 @@ RUN pacman -Syu --noconfirm && \
         python-pip \
         git \
         ca-certificates \
-    && pip install --break-system-packages pyinstaller \
+    && python -m venv /opt/venv \
+    && /opt/venv/bin/pip install pyinstaller \
     && pacman -Scc --noconfirm \
     && rm -rf /var/cache/pacman/pkg/*
+
+ENV PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /build
 
