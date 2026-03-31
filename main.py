@@ -39,7 +39,7 @@ ALL_LINUX_BUILDERS = [
     "arch_amd64",
     "debian_amd64",
     "alpine_amd64",
-    "ubuntu_arm64",
+    # "ubuntu_arm64",
 ]
 
 
