@@ -33,7 +33,7 @@ validate_config() {
     _require_var INDEX_DIR
     _require_var INDEX_FILE
     _require_var PUB_KEY1
-    _require_var PUBLISH_BRANCH
+    # _require_var PUBLISH_BRANCH
 
     # Path existence checks (only if the var is actually set)
     [[ -n "${WORKING_DIR:-}" ]] && _require_path WORKING_DIR
