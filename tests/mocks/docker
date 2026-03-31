@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# Mock docker — simulates builds by running setup.sh locally (no Docker daemon needed).
+# Handles: docker compose ... up, docker compose ... down, docker image inspect
+set -euo pipefail
+
+DOCKER_MOCK_LOG="${DOCKER_MOCK_LOG:-/tmp/mock_docker.log}"
+echo "docker $*" >> "$DOCKER_MOCK_LOG"
+
+CMD="${1:-}"
+
+if [[ "$CMD" == "image" ]]; then
+    # docker image inspect <name> — always succeed (builder images "exist")
+    echo "[]"
+    exit 0
+fi
+
+if [[ "$CMD" != "compose" ]]; then
+    echo "[mock docker] Unhandled: docker $*" >&2
+    exit 1
+fi
+
+shift  # drop "compose"
+
+# Parse remaining args looking for "up" or "down" subcommand
+# Full call from build_artifact.sh:
+#   docker compose -f <yml> up --abort-on-container-exit --exit-code-from <svc>
+#   docker compose -f <yml> down -v
+SUBCOMMAND=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        up)   SUBCOMMAND="up";   break ;;
+        down) SUBCOMMAND="down"; break ;;
+    esac
+    shift
+done
+
+if [[ "$SUBCOMMAND" == "down" ]]; then
+    echo "[mock docker] compose down (no-op)"
+    exit 0
+fi
+
+if [[ "$SUBCOMMAND" != "up" ]]; then
+    echo "[mock docker] compose: no up/down found in args" >&2
+    exit 1
+fi
+
+# --- Simulate the build ---
+# Replicates data/start.sh logic: find project in src/, run setup.sh, copy output.
+
+[[ -n "${WORKING_DIR:-}" ]] || { echo "[mock docker] WORKING_DIR not set" >&2; exit 1; }
+
+SRC_DIR="$WORKING_DIR/src"
+OUT_BASE="$WORKING_DIR/out"
+
+# Find the single project directory under src/
+PROJECT_DIR=""
+while IFS= read -r d; do
+    PROJECT_DIR="$d"
+    break
+done < <(find "$SRC_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+
+[[ -n "$PROJECT_DIR" ]] || { echo "[mock docker] No project directory found in $SRC_DIR" >&2; exit 1; }
+
+PROJECT_NAME="$(basename "$PROJECT_DIR")"
+
+# Create a temp working copy on the same filesystem as WORKING_DIR.
+# Using WORKING_DIR as the base avoids cross-filesystem cp -a failures
+# (e.g. NFS source → ext4 /tmp fails with "preserving permissions not supported").
+TMP_WORK="$(mktemp -d "$WORKING_DIR/.docker_mock.XXXXXX")"
+trap 'rm -rf "$TMP_WORK"' EXIT
+
+cp -a "$PROJECT_DIR" "$TMP_WORK/$PROJECT_NAME"
+
+JOB_DIR="$TMP_WORK/$PROJECT_NAME"
+
+[[ -f "$JOB_DIR/setup.sh" ]] || { echo "[mock docker] No setup.sh in $JOB_DIR" >&2; exit 1; }
+chmod +x "$JOB_DIR/setup.sh"
+
+# Run setup.sh exactly as data/start.sh does
+"$JOB_DIR/setup.sh" "$JOB_DIR"
+
+# Copy outputs from JOB_DIR/out/* to $WORKING_DIR/out/$PROJECT_NAME/
+# (start.sh moves $JOB_WORK_DIR/out/* to /complete/$PROJECT_NAME/ = $WORKING_DIR/out/$PROJECT_NAME/)
+SRC_OUT="$JOB_DIR/out"
+DEST_OUT="$OUT_BASE/$PROJECT_NAME"
+
+[[ -d "$SRC_OUT" ]] || { echo "[mock docker] setup.sh produced no output dir at $SRC_OUT" >&2; exit 1; }
+
+mkdir -p "$DEST_OUT"
+
+shopt -s nullglob dotglob
+files=("$SRC_OUT"/*)
+if (( ${#files[@]} > 0 )); then
+    cp -a "${files[@]}" "$DEST_OUT/"
+fi
+shopt -u nullglob dotglob
+
+echo "[mock docker] Build complete: $PROJECT_NAME -> $DEST_OUT"

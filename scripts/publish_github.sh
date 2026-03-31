@@ -17,6 +17,31 @@ PKG_NAMES=("$@")
 
 DRY_RUN="${DRY_RUN:-0}"
 
+# Rollback state — track what was created so we can undo on failure
+_TAG_CREATED=0
+_TAG_PUSHED=0
+_RELEASE_CREATED=0
+
+_on_failure() {
+    echo "publish_github.sh: failure detected, rolling back..." >&2
+    if [[ "$_RELEASE_CREATED" == 1 ]]; then
+        echo "  Rolling back: deleting GitHub release $TAG" >&2
+        gh release delete "$TAG" --yes 2>/dev/null || \
+            echo "  Warning: could not delete release $TAG" >&2
+    fi
+    if [[ "$_TAG_PUSHED" == 1 ]]; then
+        echo "  Rolling back: deleting remote tag $TAG" >&2
+        git push origin --delete "$TAG" 2>/dev/null || \
+            echo "  Warning: could not delete remote tag $TAG" >&2
+    fi
+    if [[ "$_TAG_CREATED" == 1 ]]; then
+        echo "  Rolling back: deleting local tag $TAG" >&2
+        git tag -d "$TAG" 2>/dev/null || \
+            echo "  Warning: could not delete local tag $TAG" >&2
+    fi
+}
+trap '_on_failure' ERR
+
 # Derive project name and extract metadata from the first package
 FIRST_PKG="${PKG_NAMES[0]}"
 PROJECT_NAME="${FIRST_PKG%%_v*}"
@@ -80,7 +105,9 @@ if git rev-parse "$TAG" >/dev/null 2>&1; then
   echo "Tag $TAG already exists"
 else
   git tag -a "$TAG" -m "Release $NAME $VERSION"
+  _TAG_CREATED=1
   git push origin "$TAG"
+  _TAG_PUSHED=1
 fi
 
 # Create GitHub release (idempotent)
@@ -90,6 +117,7 @@ else
   gh release create "$TAG" \
     --title "$TITLE" \
     --notes "Automated release of $NAME version $VERSION"
+  _RELEASE_CREATED=1
 fi
 
 # Upload artifacts for every target
@@ -110,5 +138,8 @@ git add "$INDEX_DIR_PATH/"
 git add "$KEY_DIR/"
 git commit -m "Publish $NAME $VERSION ($TARGET_COUNT target(s))"
 git push origin "$PUBLISH_BRANCH"
+
+# All steps succeeded — disable rollback trap
+trap - ERR
 
 echo "Index updated successfully"

@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+# Mock gh CLI — simulates GitHub release operations using a local state JSON file.
+# State file: $GH_MOCK_STATE (default /tmp/gh_mock_state.json)
+# Failure injection: set GH_MOCK_FAIL_OP=create|upload|delete to simulate failure.
+
+GH_MOCK_LOG="${GH_MOCK_LOG:-/tmp/mock_gh.log}"
+GH_MOCK_STATE="${GH_MOCK_STATE:-/tmp/gh_mock_state.json}"
+FAIL_OP="${GH_MOCK_FAIL_OP:-}"
+
+echo "gh $*" >> "$GH_MOCK_LOG"
+
+# Initialize state file if absent
+if [[ ! -f "$GH_MOCK_STATE" ]]; then
+    printf '{"releases":{}}\n' > "$GH_MOCK_STATE"
+fi
+
+_state_get() {
+    jq -r "$1" "$GH_MOCK_STATE"
+}
+
+_state_update() {
+    local expr="$1"
+    local tmp
+    tmp="$(mktemp "${GH_MOCK_STATE}.XXXXXX")"
+    jq "$expr" "$GH_MOCK_STATE" > "$tmp"
+    mv "$tmp" "$GH_MOCK_STATE"
+}
+
+ACTION="${1:-}"
+SUBACTION="${2:-}"
+
+case "$ACTION $SUBACTION" in
+    "release view")
+        TAG="${3:-}"
+        EXISTS="$(_state_get ".releases[\"$TAG\"] // \"null\"")"
+        if [[ "$EXISTS" == "null" ]]; then
+            echo "release not found: $TAG" >&2
+            exit 1
+        fi
+        echo "tag: $TAG"
+        exit 0
+        ;;
+
+    "release create")
+        if [[ "$FAIL_OP" == "create" ]]; then
+            echo "[mock gh] Simulated failure: release create" >&2
+            exit 1
+        fi
+        TAG="${3:-}"
+        TITLE=""
+        shift 3
+        while [[ $# -gt 0 ]]; do
+            if [[ "$1" == "--title" && -n "${2:-}" ]]; then
+                TITLE="$2"; shift 2
+            else
+                shift
+            fi
+        done
+        _state_update ".releases[\"$TAG\"] = {\"title\": \"$TITLE\", \"assets\": []}"
+        echo "https://github.com/mock/repo/releases/tag/$TAG"
+        exit 0
+        ;;
+
+    "release upload")
+        TAG="${3:-}"
+        if [[ "$FAIL_OP" == "upload" ]]; then
+            echo "[mock gh] Simulated failure: release upload" >&2
+            exit 1
+        fi
+        # Check release exists
+        EXISTS="$(_state_get ".releases[\"$TAG\"] // \"null\"")"
+        if [[ "$EXISTS" == "null" ]]; then
+            echo "[mock gh] Release $TAG not found for upload" >&2
+            exit 1
+        fi
+        shift 3
+        while [[ $# -gt 0 ]]; do
+            if [[ "$1" != "--clobber" ]]; then
+                ASSET="$(basename "$1")"
+                _state_update ".releases[\"$TAG\"].assets += [\"$ASSET\"]"
+            fi
+            shift
+        done
+        exit 0
+        ;;
+
+    "release delete")
+        if [[ "$FAIL_OP" == "delete" ]]; then
+            echo "[mock gh] Simulated failure: release delete" >&2
+            exit 1
+        fi
+        TAG="${3:-}"
+        EXISTS="$(_state_get ".releases[\"$TAG\"] // \"null\"")"
+        if [[ "$EXISTS" == "null" ]]; then
+            echo "release not found: $TAG" >&2
+            exit 1
+        fi
+        _state_update "del(.releases[\"$TAG\"])"
+        echo "Deleted release $TAG"
+        exit 0
+        ;;
+
+    "release list")
+        _state_get '.releases | keys[]'
+        exit 0
+        ;;
+
+    *)
+        echo "[mock gh] Unhandled: gh $*" >&2
+        exit 1
+        ;;
+esac

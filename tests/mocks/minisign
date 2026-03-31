@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Mock minisign — creates dummy .minisig files instead of real cryptographic signatures.
+# Records all calls to $MINISIGN_MOCK_LOG.
+
+MINISIGN_MOCK_LOG="${MINISIGN_MOCK_LOG:-/tmp/mock_minisign.log}"
+echo "minisign $*" >> "$MINISIGN_MOCK_LOG"
+
+# Consume stdin (package_sign.sh pipes the passphrase via echo "$SIG_PASS" | minisign ...)
+read -t 1 _PASSPHRASE 2>/dev/null || true
+
+TARGET_FILE=""
+while [[ $# -gt 0 ]]; do
+    if [[ "$1" == "-m" && -n "${2:-}" ]]; then
+        TARGET_FILE="$2"
+        shift 2
+    else
+        shift
+    fi
+done
+
+if [[ -n "$TARGET_FILE" ]]; then
+    printf 'untrusted comment: mock signature from minisign mock\nMOCKSIGNATUREDATABASE64PLACEHOLDER==\n' \
+        > "${TARGET_FILE}.minisig"
+    echo "[mock minisign] Signed: $TARGET_FILE"
+    exit 0
+fi
+
+echo "[mock minisign] No -m <file> argument found" >&2
+exit 1
