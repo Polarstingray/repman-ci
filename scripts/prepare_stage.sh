@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source "/opt/homelab/ci_runner/config.env"
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+source "$SCRIPT_DIR/../config.env"
 
 PROJECT_PATH="$1"
 CI_DIR="$WORKING_DIR"

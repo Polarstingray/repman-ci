@@ -38,30 +38,35 @@ def create_index_mdata(metadata, name, version, os, arch, url=PACKAGE_DIR) -> di
 def edit_target(metadata, name, version, os, arch, key, value) -> bool:
     """Edit a target for a given os/arch version."""
     if metadata.get(name) is None or metadata[name]["versions"].get(version) is None: return False
-    if metadata[name]["versions"][version]["targets"].get(f"{os}_{arch}") is None : return False
-    if not metadata[name]["versions"][version]["targets"].get(f"{os}_{arch}").get(key): return False
+    target = metadata[name]["versions"][version]["targets"].get(f"{os}_{arch}")
+    if target is None: return False
+    if key not in target: return False
 
-    metadata[name]["versions"][version]["targets"][f"{os}_{arch}"][key] = value
+    target[key] = value
     return True
 
-def is_latest(metadata, name, version) -> bool:
-    """Return True if provided version is greater than current latest."""
-    lmajor, lminor, lpatch = map(int, metadata[name]["latest"].split("."))
-    rmajor, rminor, rpatch = map(int, version.split("."))
-    return (
-        lmajor < rmajor
-        or (lmajor == rmajor and lminor < rminor)
-        or (lmajor == rmajor and lminor == rminor and lpatch < rpatch)
-    )
+def greater_version(v1: str, v2: str) -> bool:
+    """Return True if v1 is strictly greater than v2. If v2 is None, True."""
+    if v2 is None:
+        return True
+    v1_major, v1_minor, v1_patch = map(int, v1.split("."))
+    v2_major, v2_minor, v2_patch = map(int, v2.split("."))
+    if v1_major > v2_major:
+        return True
+    if v1_major == v2_major and v1_minor > v2_minor:
+        return True
+    if v1_major == v2_major and v1_minor == v2_minor and v1_patch > v2_patch:
+        return True
+    return False
 
 
 def add_version(metadata, name, version, os, arch, url=PACKAGE_DIR):
     """Add a version for a given os/arch target, updating latest if needed."""
     if metadata.get(name) is None:
-        create_index_mdata(metadata, name, version, os, arch)
+        create_index_mdata(metadata, name, version, os, arch, url)
         return metadata
 
-    if is_latest(metadata, name, version):
+    if greater_version(version, metadata[name]["latest"]):
         metadata[name]["latest"] = version
     if metadata[name]["versions"].get(version) is None:
         metadata[name]["versions"][version] = {
@@ -81,7 +86,7 @@ def add_version(metadata, name, version, os, arch, url=PACKAGE_DIR):
             is None
         ):
             metadata[name]["versions"][version]["targets"][f"{os}_{arch}"] = {
-                "url": f"{PACKAGE_DIR}",
+                "url": f"{url}",
                 "signature": f"{package_name(name, version, os, arch, 1)}",
                 "sha256" : f"{package_name(name, version, os, arch, 2)}"
             }
@@ -135,22 +140,6 @@ def package_name(name: str, version: str="", os: str="", arch: str="", sig: int=
         return f"{name}_v{version}_{os}_{arch}".lower()
 
 
-
-def greater_version(v1: str, v2: str) -> bool:
-    """Return True if v1 is strictly greater than v2. If v2 is None, True."""
-    if v2 is None:
-        return True
-    v1_major, v1_minor, v1_patch = map(int, v1.split("."))
-    v2_major, v2_minor, v2_patch = map(int, v2.split("."))
-    if v1_major > v2_major:
-        return True
-    if v1_major == v2_major and v1_minor > v2_minor:
-        return True
-    if v1_major == v2_major and v1_minor == v2_minor and v1_patch > v2_patch:
-        return True
-    return False
-
-
 def get_version(md, name, os, arch) -> str:
     # get latest version of type os_arch
     if md.get(name) is None:
@@ -180,39 +169,3 @@ def safe_write_json(file_path: str, data) -> None:
                 remove(tmp_path)
             except OSError:
                 pass
-
-
-def main():
-    metadata = {}
-
-    create_index_mdata(metadata, "example_program", "1.0.0", "linux", "amd64")
-    add_version(metadata, "example_program", "1.0.1", "linux", "amd64")
-    add_version(metadata, "example_program", "1.0.2", "linux", "amd64")
-
-    create_index_mdata(metadata, "example_program2", "1.1.0", "linux", "amd64")
-    add_version(metadata, "example_program2", "1.1.1", "linux", "amd64")
-    add_version(metadata, "example_program2", "1.1.2", "linux", "amd64")
-    add_version(metadata, "example_program2", "1.1.2", "macos", "arm64")
-
-    # test
-    version = get_version(metadata, "example_program", "linux", "amd64")
-    print(f"Latest Version of linux amd64: {version}")
-
-    add_version(metadata, "example_program", "1.0.3", "linux", "amd64")
-    add_version(metadata, "example_program", "1.0.4", "arch", "amd64")
-
-    version = get_version(metadata, "example_program", "linux", "amd64")
-    print(f"Latest Version of linux amd64: {version}")
-
-    for name, md in metadata.items():
-        print(f"Package: {name}")
-        print(f"Latest Version: {md['latest']}")
-        for version, targets in md["versions"].items():
-            print(f"v{version} : {targets}")
-        print()
-
-    print(metadata)
-
-
-if __name__ == "__main__":
-    main()

@@ -3,28 +3,36 @@
 import os
 import json
 import argparse
-import tempfile
 from dotenv import load_dotenv
 import sys
 
 WORKING_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(WORKING_DIR)
-from core.index import * 
+from core.index import (
+    add_version,
+    create_index_mdata,
+    create_pkg_md,
+    get_version,
+    package_name,
+    safe_write_json,
+    update_version,
+)
 
 
 ENV_FILE = os.path.join(WORKING_DIR, "config.env")
 
 load_dotenv(ENV_FILE)
 
-DEFAULT_BUILDER=os.getenv("DEFAULT_BUILDER", "ubuntu_amd64")
+DEFAULT_BUILDER = os.getenv("DEFAULT_BUILDER", "ubuntu_amd64")
 DEFAULT_METADATA_FILE = os.path.join(WORKING_DIR, "metadata", "index.json")
 DEFAULT_OUT_DIR = os.path.join(WORKING_DIR, "out")
 PKG_URL = os.getenv("GITHUB_REPO", "https://example.com/package")
+INITIAL_VERSION = "1.0.0"
 
 
-def parse_builder(builder: str) -> tuple :
-    os, arch = builder.split("_")
-    return os, arch
+def parse_builder(builder: str) -> tuple:
+    op_sys, arch = builder.split("_")
+    return op_sys, arch
 
 def ensure_environment(metadata_file: str, out_dir: str) -> None:
     os.makedirs(os.path.dirname(metadata_file), exist_ok=True)
@@ -44,7 +52,7 @@ def main() -> None:
         help="Type of update to apply to the version.",
     )
     parser.add_argument(
-        "-b", "--builder", 
+        "-b", "--builder",
         type=str,
         default=DEFAULT_BUILDER,
         help="Name of the builder to use for the program.",
@@ -69,8 +77,6 @@ def main() -> None:
 
     if args.env:
         load_dotenv(args.env)
-    else:
-        load_dotenv(ENV_FILE)
 
     try:
         ensure_environment(metadata_file, out_dir)
@@ -80,18 +86,22 @@ def main() -> None:
         print(f"Failed to initialize environment or read metadata: {exc}")
         raise SystemExit(1)
 
-
     op_sys, arch = parse_builder(args.builder)
-    version = "1.0.0"
-    pkg_url=f"{PKG_URL}/{args.name}-v{version}"
+    version = INITIAL_VERSION
+    pkg_url = f"{PKG_URL}/{args.name}-v{version}"
     if args.name not in metadata:
-        create_index_mdata(metadata, args.name, version, op_sys, arch, pkg_url) # create version 1
-    else :
+        create_index_mdata(metadata, args.name, version, op_sys, arch, pkg_url)
+    else:
+        if args.update_type == "new":
+            raise SystemExit(
+                f"update_type 'new' is only valid for packages not yet in the index; "
+                f"'{args.name}' already exists. Use major/minor/patch instead."
+            )
         curr_version = get_version(metadata, args.name, op_sys, arch)
         print(f"curr version: {curr_version}")
         if curr_version is not None:
             version = update_version(curr_version, args.update_type)
-        pkg_url=f"{PKG_URL}/{args.name}-v{version}"
+        pkg_url = f"{PKG_URL}/{args.name}-v{version}"
         add_version(metadata, args.name, version, op_sys, arch, pkg_url)
 
     try:
@@ -108,7 +118,7 @@ def main() -> None:
     except Exception as exc:
         print(f"Failed to write output file: {exc}")
         raise SystemExit(1)
-    
+
     print(f"Program {args.name} has been staged.")
     print(pkg_name)
 
