@@ -1,14 +1,13 @@
 services:
-  macos_arm64_builder:
-    image: local/builder:macos-cross
+  ubuntu_arm64_builder:
+    image: local/builder:ubuntu22-arm64
+    platform: linux/arm64
     command: /bin/bash /startup/start.sh
     volumes:
       - in_progress:/in_progress
       - ${WORKING_DIR}/data:/startup
       - ${WORKING_DIR}/src:/todo
       - ${WORKING_DIR}/out:/complete
-    # To enable C/C++ cross-compilation, mount a pre-built osxcross installation:
-    #   - /opt/osxcross:/opt/osxcross:ro
 
 volumes:
   in_progress:

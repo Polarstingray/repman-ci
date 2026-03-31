@@ -1,7 +1,16 @@
 FROM archlinux:latest
 
-RUN pacman -Sy --noconfirm base-devel && \
-    rm -rf /var/lib/apt/lists/*
+RUN pacman -Syu --noconfirm && \
+    pacman -S --noconfirm \
+        base-devel \
+        python \
+        python-pip \
+        python-pyinstaller \
+        git \
+        ca-certificates \
+    && pacman -Scc --noconfirm \
+    && rm -rf /var/cache/pacman/pkg/*
 
 WORKDIR /build
 
+# docker build -t local/builder:arch -f builders/docker/arch .
