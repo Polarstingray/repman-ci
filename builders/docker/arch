@@ -5,9 +5,9 @@ RUN pacman -Syu --noconfirm && \
         base-devel \
         python \
         python-pip \
-        python-pyinstaller \
         git \
         ca-certificates \
+    && pip install --break-system-packages pyinstaller \
     && pacman -Scc --noconfirm \
     && rm -rf /var/cache/pacman/pkg/*
 
