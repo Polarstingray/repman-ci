@@ -153,6 +153,31 @@ def get_version(md, name, os, arch) -> str:
 
     return latest_version
 
+def remove_version(metadata: dict, name: str, version: str) -> bool:
+    """Remove a version entry from the index.
+
+    If removing the current latest, promotes the next highest remaining version.
+    If no versions remain, removes the package entry entirely.
+    Returns True if the version was found and removed, False otherwise.
+    """
+    if name not in metadata:
+        return False
+    versions = metadata[name].get("versions", {})
+    if version not in versions:
+        return False
+    del versions[version]
+    if metadata[name].get("latest") == version:
+        remaining = sorted(
+            versions.keys(),
+            key=lambda v: list(map(int, v.split("."))),
+        )
+        if remaining:
+            metadata[name]["latest"] = remaining[-1]
+        else:
+            del metadata[name]
+    return True
+
+
 def safe_write_json(file_path: str, data) -> None:
     directory = path.dirname(file_path) or "."
     makedirs(directory, exist_ok=True)

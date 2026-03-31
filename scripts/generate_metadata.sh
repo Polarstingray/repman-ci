@@ -11,8 +11,11 @@ BUILDER="$3"
 CORE="$WORKING_DIR/core"
 OUT_DIR="$WORKING_DIR/out"
 
+VERSION_ARGS=()
+[[ -n "${EXPLICIT_VERSION:-}" ]] && VERSION_ARGS=(--version "$EXPLICIT_VERSION")
+
 PY_OUTPUT=$(
-  python3 "$CORE/stage.py" "$PROJECT" "$UPDATE_TYPE" -b "$BUILDER"
+  python3 "$CORE/stage.py" "$PROJECT" "$UPDATE_TYPE" -b "$BUILDER" "${VERSION_ARGS[@]}"
 )
 
 PKG_NAME="$(echo "$PY_OUTPUT" | tail -n 1)"

@@ -2,12 +2,13 @@ out/*
 src/*
 test/
 .env
-*.env*
+config.env
 metadata/
 __pycache__/
 *cache*
 *ci.key*
 *.key*
-venv/*
+venv/
+.venv/
 *__pycache__*
 CLAUDE.md

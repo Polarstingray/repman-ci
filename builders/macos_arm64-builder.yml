@@ -7,8 +7,12 @@ services:
       - ${WORKING_DIR}/data:/startup
       - ${WORKING_DIR}/src:/todo
       - ${WORKING_DIR}/out:/complete
+      - macos_arm64_go_cache:/root/go/pkg/mod
+      - macos_arm64_cargo_cache:/root/.cargo/registry
     # To enable C/C++ cross-compilation, mount a pre-built osxcross installation:
     #   - /opt/osxcross:/opt/osxcross:ro
 
 volumes:
   in_progress:
+  macos_arm64_go_cache:
+  macos_arm64_cargo_cache:

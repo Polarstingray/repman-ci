@@ -8,6 +8,8 @@ services:
       - ${WORKING_DIR}/data:/startup
       - ${WORKING_DIR}/src:/todo
       - ${WORKING_DIR}/out:/complete
+      - ubuntu_arm64_pip_cache:/root/.cache/pip
 
 volumes:
   in_progress:
+  ubuntu_arm64_pip_cache:

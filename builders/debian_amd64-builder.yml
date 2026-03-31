@@ -7,6 +7,8 @@ services:
       - ${WORKING_DIR}/data:/startup
       - ${WORKING_DIR}/src:/todo
       - ${WORKING_DIR}/out:/complete
+      - debian_amd64_pip_cache:/root/.cache/pip
 
 volumes:
   in_progress:
+  debian_amd64_pip_cache:

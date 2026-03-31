@@ -9,6 +9,7 @@ BUILDER="${2:-$DEFAULT_BUILDER}"
 
 CI_DIR="$WORKING_DIR"
 BUILD_DIR="$CI_DIR/builders"
+DRY_RUN="${DRY_RUN:-0}"
 
 compose_up() {
   docker compose -f "$BUILD_DIR/$BUILDER-builder.yml" up \
@@ -19,6 +20,11 @@ compose_up() {
 compose_down() {
   docker compose -f "$BUILD_DIR/$BUILDER-builder.yml" down -v
 }
+
+if [[ "$DRY_RUN" == "1" ]]; then
+  echo "[DRY-RUN] Would run: docker compose -f $BUILD_DIR/$BUILDER-builder.yml up --exit-code-from ${BUILDER}_builder"
+  exit 0
+fi
 
 trap compose_down EXIT
 compose_up

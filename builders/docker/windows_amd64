@@ -11,7 +11,7 @@ FROM ubuntu:22.04
 #   - PyInstaller: cannot cross-compile; Windows binaries require a native Windows runner
 
 ENV DEBIAN_FRONTEND=noninteractive
-ARG GO_VERSION=1.22.4
+ARG GO_VERSION
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
