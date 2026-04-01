@@ -48,3 +48,10 @@ teardown() {
         ! grep -q "compose up" "$DOCKER_MOCK_LOG"
     fi
 }
+
+@test "deps.json: mock docker logs would-install packages" {
+    printf '{"apt":["libcurl4-openssl-dev"]}' > "$WORKING_DIR/src/test/deps.json"
+    run bash "$SCRIPT" "test" "ubuntu_amd64"
+    [ "$status" -eq 0 ]
+    grep -q "would install.*libcurl4-openssl-dev" "$DOCKER_MOCK_LOG"
+}

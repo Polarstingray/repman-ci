@@ -76,6 +76,16 @@ JOB_DIR="$TMP_WORK/$PROJECT_NAME"
 [[ -f "$JOB_DIR/setup.sh" ]] || { echo "[mock docker] No setup.sh in $JOB_DIR" >&2; exit 1; }
 chmod +x "$JOB_DIR/setup.sh"
 
+# Simulate deps.json installation (mirrors data/start.sh _install_deps logic)
+if [[ -f "$JOB_DIR/deps.json" ]]; then
+    pkg_list=$(python3 -c \
+        "import json; d=json.load(open('$JOB_DIR/deps.json')); print(' '.join(d.get('apt', d.get('apk', d.get('pacman', [])))))" \
+        2>/dev/null) || true
+    if [[ -n "$pkg_list" ]]; then
+        echo "[MOCK-DEPS] would install: $pkg_list" >> "$DOCKER_MOCK_LOG"
+    fi
+fi
+
 # Run setup.sh exactly as data/start.sh does
 "$JOB_DIR/setup.sh" "$JOB_DIR"
 
