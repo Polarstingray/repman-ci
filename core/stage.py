@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import re
 import json
 import argparse
 from dotenv import load_dotenv
@@ -28,6 +29,8 @@ DEFAULT_METADATA_FILE = os.path.join(WORKING_DIR, "metadata", "index.json")
 DEFAULT_OUT_DIR = os.path.join(WORKING_DIR, "out")
 PKG_URL = os.getenv("GITHUB_REPO", "https://example.com/package")
 INITIAL_VERSION = "1.0.0"
+
+SEMVER_RE = re.compile(r'^\d+\.\d+\.\d+$')
 
 
 def parse_builder(builder: str) -> tuple:
@@ -70,6 +73,13 @@ def main() -> None:
         default=DEFAULT_OUT_DIR,
         help="Output directory for package metadata (default: %(default)s)",
     )
+    parser.add_argument(
+        "--version",
+        dest="explicit_version",
+        default=None,
+        metavar="X.Y.Z",
+        help="Explicit version override. Skips automatic version bump.",
+    )
     args = parser.parse_args()
 
     metadata_file = args.metadata_file
@@ -77,6 +87,15 @@ def main() -> None:
 
     if args.env:
         load_dotenv(args.env)
+
+    # Validate explicit version if provided
+    explicit_version = None
+    if args.explicit_version:
+        if not SEMVER_RE.match(args.explicit_version):
+            raise SystemExit(
+                f"Invalid version '{args.explicit_version}'. Expected X.Y.Z format (e.g. 1.2.3)."
+            )
+        explicit_version = args.explicit_version
 
     try:
         ensure_environment(metadata_file, out_dir)
@@ -87,22 +106,31 @@ def main() -> None:
         raise SystemExit(1)
 
     op_sys, arch = parse_builder(args.builder)
-    version = INITIAL_VERSION
-    pkg_url = f"{PKG_URL}/{args.name}-v{version}"
-    if args.name not in metadata:
-        create_index_mdata(metadata, args.name, version, op_sys, arch, pkg_url)
-    else:
-        if args.update_type == "new":
-            raise SystemExit(
-                f"update_type 'new' is only valid for packages not yet in the index; "
-                f"'{args.name}' already exists. Use major/minor/patch instead."
-            )
-        curr_version = get_version(metadata, args.name, op_sys, arch)
-        print(f"curr version: {curr_version}")
-        if curr_version is not None:
-            version = update_version(curr_version, args.update_type)
+
+    if explicit_version:
+        version = explicit_version
         pkg_url = f"{PKG_URL}/{args.name}-v{version}"
-        add_version(metadata, args.name, version, op_sys, arch, pkg_url)
+        if args.name not in metadata:
+            create_index_mdata(metadata, args.name, version, op_sys, arch, pkg_url)
+        else:
+            add_version(metadata, args.name, version, op_sys, arch, pkg_url)
+    else:
+        version = INITIAL_VERSION
+        pkg_url = f"{PKG_URL}/{args.name}-v{version}"
+        if args.name not in metadata:
+            create_index_mdata(metadata, args.name, version, op_sys, arch, pkg_url)
+        else:
+            if args.update_type == "new":
+                raise SystemExit(
+                    f"update_type 'new' is only valid for packages not yet in the index; "
+                    f"'{args.name}' already exists. Use major/minor/patch instead."
+                )
+            curr_version = get_version(metadata, args.name, op_sys, arch)
+            print(f"curr version: {curr_version}")
+            if curr_version is not None:
+                version = update_version(curr_version, args.update_type)
+            pkg_url = f"{PKG_URL}/{args.name}-v{version}"
+            add_version(metadata, args.name, version, op_sys, arch, pkg_url)
 
     try:
         safe_write_json(metadata_file, metadata)

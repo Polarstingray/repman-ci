@@ -1,0 +1,18 @@
+FROM alpine:3.19
+
+# Produces statically-linked musl binaries.
+# Note: PyInstaller on Alpine/musl is experimental — projects using it should
+# test output carefully. Go and C/C++ work well with musl.
+
+RUN apk add --no-cache \
+        build-base \
+        git \
+        ca-certificates \
+        python3 \
+        py3-pip \
+        musl-dev \
+    && pip3 install --break-system-packages pyinstaller
+
+WORKDIR /build
+
+# docker build -t local/builder:alpine -f builders/docker/alpine_amd64 .

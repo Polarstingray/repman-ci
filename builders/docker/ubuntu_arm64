@@ -1,4 +1,8 @@
-FROM ubuntu:24.04
+FROM --platform=linux/arm64 ubuntu:24.04
+
+# Targets: Linux arm64 (Raspberry Pi 4/5, ARM servers, etc.)
+# Requires QEMU binfmt_misc on the host for emulation on x86_64:
+#   docker run --privileged --rm tonistiigi/binfmt --install arm64
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -15,4 +19,4 @@ RUN apt-get update && \
 
 WORKDIR /build
 
-# docker build -t local/builder:ubuntu24 -f builders/docker/ubuntu .
+# docker build --platform linux/arm64 -t local/builder:ubuntu24-arm64 -f builders/docker/ubuntu_arm64 .

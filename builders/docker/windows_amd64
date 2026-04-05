@@ -1,0 +1,47 @@
+FROM ubuntu:22.04
+
+# Cross-compilation target: Windows amd64
+#
+# What works:
+#   - C/C++: MinGW-w64 cross-compiler (gcc-mingw-w64-x86-64)
+#   - Go:    native cross-compilation via GOOS=windows GOARCH=amd64, no extra tools needed
+#   - Rust:  x86_64-pc-windows-gnu target via MinGW-w64
+#
+# What does NOT work:
+#   - PyInstaller: cannot cross-compile; Windows binaries require a native Windows runner
+
+ENV DEBIAN_FRONTEND=noninteractive
+ARG GO_VERSION
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        gcc-mingw-w64-x86-64 \
+        g++-mingw-w64-x86-64 \
+        git \
+        ca-certificates \
+        curl \
+        python3 \
+        python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Go — natively cross-compiles to windows/amd64 without extra tools
+RUN curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" \
+        | tar -C /usr/local -xz
+ENV PATH="/usr/local/go/bin:$PATH"
+ENV GOOS=windows
+ENV GOARCH=amd64
+
+# Point C/C++ toolchain to the MinGW cross-compiler
+ENV CC=x86_64-w64-mingw32-gcc
+ENV CXX=x86_64-w64-mingw32-g++
+
+# Rust — x86_64-pc-windows-gnu target via MinGW linker
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+        | sh -s -- -y --default-toolchain stable --profile minimal \
+    && /root/.cargo/bin/rustup target add x86_64-pc-windows-gnu
+ENV PATH="/root/.cargo/bin:$PATH"
+
+WORKDIR /build
+
+# docker build -t local/builder:windows-cross -f builders/docker/windows_amd64 .

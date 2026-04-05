@@ -31,7 +31,39 @@ fi
 
 # Move job into working directory atomically
 :
-mv "$SRC_JOB_DIR" "$WORKING_DIR/"
+cp -a "$SRC_JOB_DIR" "$WORKING_DIR/"
+
+# Install per-project runtime dependencies declared in deps.json
+_install_deps() {
+    local deps_file="$1"
+    local pkg_list
+
+    if command -v apt-get >/dev/null 2>&1; then
+        pkg_list=$(python3 -c \
+            "import json; d=json.load(open('$deps_file')); print(' '.join(d.get('apt',[])))" \
+            2>/dev/null) || return 0
+        [[ -z "$pkg_list" ]] && return 0
+        apt-get update -qq && apt-get install -y --no-install-recommends $pkg_list
+
+    elif command -v pacman >/dev/null 2>&1; then
+        pkg_list=$(python3 -c \
+            "import json; d=json.load(open('$deps_file')); print(' '.join(d.get('pacman',[])))" \
+            2>/dev/null) || return 0
+        [[ -z "$pkg_list" ]] && return 0
+        pacman -Sy --noconfirm $pkg_list
+
+    elif command -v apk >/dev/null 2>&1; then
+        pkg_list=$(python3 -c \
+            "import json; d=json.load(open('$deps_file')); print(' '.join(d.get('apk',[])))" \
+            2>/dev/null) || return 0
+        [[ -z "$pkg_list" ]] && return 0
+        apk add --no-cache $pkg_list
+    fi
+}
+
+if [[ -f "$JOB_WORK_DIR/deps.json" ]]; then
+    _install_deps "$JOB_WORK_DIR/deps.json"
+fi
 
 SETUP_SH="$JOB_WORK_DIR/setup.sh"
 if [[ ! -f "$SETUP_SH" ]]; then

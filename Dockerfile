@@ -1,14 +1,15 @@
 FROM ubuntu:22.04
 
-RUN apt update && \
-    apt install -y python3-pip && \
-    pip install pyinstaller && \
-    pip install --upgrade pip && \
-    pip install --upgrade setuptools && \
-    apt install -y --no-install-recommends \
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
         build-essential \
         git \
         ca-certificates \
+        python3 \
+        python3-pip \
+    && pip3 install pyinstaller \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build

@@ -1,14 +1,14 @@
 services:
-  arch_amd64_builder:
-    image: local/builder:arch
-    command: /bin/bash /startup/start.sh
+  alpine_amd64_builder:
+    image: local/builder:alpine
+    command: /bin/sh /startup/start.sh
     volumes:
       - in_progress:/in_progress
       - ${WORKING_DIR}/data:/startup
       - ${WORKING_DIR}/src:/todo
       - ${WORKING_DIR}/out:/complete
-      - arch_amd64_pip_cache:/root/.cache/pip
+      - alpine_amd64_pip_cache:/root/.cache/pip
 
 volumes:
   in_progress:
-  arch_amd64_pip_cache:
+  alpine_amd64_pip_cache:

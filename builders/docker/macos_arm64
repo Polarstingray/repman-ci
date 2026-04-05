@@ -1,0 +1,58 @@
+FROM ubuntu:22.04
+
+# Cross-compilation target: macOS arm64 (Apple Silicon)
+#
+# What works:
+#   - Go:   native cross-compilation via GOOS=darwin GOARCH=arm64, no SDK needed
+#   - Rust: aarch64-apple-darwin target (requires macOS SDK for linking)
+#   - C/C++: requires osxcross + macOS SDK (see below)
+#
+# What does NOT work:
+#   - PyInstaller: cannot cross-compile; macOS binaries require a native macOS runner
+#
+# osxcross / C cross-compilation:
+#   macOS cannot run inside Docker. C/C++ cross-compilation requires the macOS SDK,
+#   which must be obtained from Xcode (https://developer.apple.com/xcode/).
+#   Extract it as MacOSX<ver>.sdk.tar.xz and build osxcross separately:
+#     git clone https://github.com/tpoechtrager/osxcross
+#     cp MacOSX<ver>.sdk.tar.xz osxcross/tarballs/
+#     UNATTENDED=1 osxcross/build.sh
+#   Then mount /opt/osxcross into the container or bake it into a derived image.
+
+ENV DEBIAN_FRONTEND=noninteractive
+ARG GO_VERSION
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        cmake \
+        git \
+        ca-certificates \
+        curl \
+        libxml2-dev \
+        libssl-dev \
+        zlib1g-dev \
+        patch \
+        python3 \
+        python3-pip \
+        bzip2 \
+        xz-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+# Go — natively cross-compiles to darwin/arm64 without any SDK
+RUN curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" \
+        | tar -C /usr/local -xz
+ENV PATH="/usr/local/go/bin:$PATH"
+ENV GOOS=darwin
+ENV GOARCH=arm64
+
+# Rust — aarch64-apple-darwin target
+# Full linking requires the macOS SDK mounted at /opt/osxcross
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+        | sh -s -- -y --default-toolchain stable --profile minimal \
+    && /root/.cargo/bin/rustup target add aarch64-apple-darwin
+ENV PATH="/root/.cargo/bin:$PATH"
+
+WORKDIR /build
+
+# docker build -t local/builder:macos-cross -f builders/docker/macos_arm64 .

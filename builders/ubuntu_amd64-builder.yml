@@ -1,14 +1,14 @@
 services:
   ubuntu_amd64_builder:
     image: local/builder:ubuntu22
-    command: >
-      /bin/bash 
-      /startup/start.sh
-    volumes :
-      - in_progress:/in_progress 
-      - /srv/docker/ci_runner/data:/startup
-      - /srv/docker/ci_runner/src:/todo
-      - /srv/docker/ci_runner/out:/complete
+    command: /bin/bash /startup/start.sh
+    volumes:
+      - in_progress:/in_progress
+      - ${WORKING_DIR}/data:/startup
+      - ${WORKING_DIR}/src:/todo
+      - ${WORKING_DIR}/out:/complete
+      - ubuntu_amd64_pip_cache:/root/.cache/pip
 
 volumes:
   in_progress:
+  ubuntu_amd64_pip_cache:

@@ -1,14 +1,16 @@
 services:
-  arch_amd64_builder:
-    image: local/builder:arch
+  windows_amd64_builder:
+    image: local/builder:windows-cross
     command: /bin/bash /startup/start.sh
     volumes:
       - in_progress:/in_progress
       - ${WORKING_DIR}/data:/startup
       - ${WORKING_DIR}/src:/todo
       - ${WORKING_DIR}/out:/complete
-      - arch_amd64_pip_cache:/root/.cache/pip
+      - windows_amd64_go_cache:/root/go/pkg/mod
+      - windows_amd64_cargo_cache:/root/.cargo/registry
 
 volumes:
   in_progress:
-  arch_amd64_pip_cache:
+  windows_amd64_go_cache:
+  windows_amd64_cargo_cache:

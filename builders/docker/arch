@@ -1,7 +1,19 @@
 FROM archlinux:latest
 
-RUN pacman -Sy --noconfirm base-devel && \
-    rm -rf /var/lib/apt/lists/*
+RUN pacman -Syu --noconfirm && \
+    pacman -S --noconfirm \
+        base-devel \
+        python \
+        python-pip \
+        git \
+        ca-certificates \
+    && python -m venv /opt/venv \
+    && /opt/venv/bin/pip install pyinstaller \
+    && pacman -Scc --noconfirm \
+    && rm -rf /var/cache/pacman/pkg/*
+
+ENV PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /build
 
+# docker build -t local/builder:arch -f builders/docker/arch .
