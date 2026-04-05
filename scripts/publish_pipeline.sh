@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 _p="$(dirname "$SCRIPT_DIR")"; [[ "$(basename "$_p")" == lib ]] && _p="$(dirname "$_p")"
 : "${WORKING_DIR:=$_p}"; unset _p
 export WORKING_DIR
-[[ -f "$WORKING_DIR/config.env" ]] && source "$WORKING_DIR/config.env"
+source "$WORKING_DIR/data/config.env" || { echo "[repcid] config.env not found at $WORKING_DIR/data/config.env" >&2; exit 1; }
 source "$SCRIPT_DIR/validate_env.sh"
 
 usage() {

@@ -7,8 +7,10 @@ import argparse
 from dotenv import load_dotenv
 import sys
 
-WORKING_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(WORKING_DIR)
+_lib_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # core/../ = lib/ or root
+# Support installed layout (core/ inside lib/) or dev layout (core/ at root)
+WORKING_DIR = os.path.dirname(_lib_dir) if os.path.basename(_lib_dir) == "lib" else _lib_dir
+sys.path.append(_lib_dir)
 from core.index import (
     add_version,
     create_index_mdata,
@@ -20,7 +22,7 @@ from core.index import (
 )
 
 
-ENV_FILE = os.path.join(WORKING_DIR, "config.env")
+ENV_FILE = os.path.join(WORKING_DIR, "data", "config.env")
 
 load_dotenv(ENV_FILE)
 
