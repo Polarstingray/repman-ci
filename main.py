@@ -9,14 +9,17 @@ from subprocess import run, CalledProcessError
 
 from dotenv import load_dotenv
 
-WORKING_DIR = os.path.dirname(os.path.abspath(__file__))
-STAGE_SCRIPT = os.path.join(WORKING_DIR, "core", "stage.py")
-PUBLISH_PIPELINE = os.path.join(WORKING_DIR, "scripts", "publish_pipeline.sh")
-BUILDERS_DIR = os.path.join(WORKING_DIR, "builders")
+_self_dir = os.path.dirname(os.path.abspath(__file__))
+# Support installed layout (main.py in lib/) or dev layout (main.py at repo root)
+WORKING_DIR = os.path.dirname(_self_dir) if os.path.basename(_self_dir) == "lib" else _self_dir
+# Code lives in _self_dir (lib/ when installed, root in dev); config lives at WORKING_DIR root
+STAGE_SCRIPT = os.path.join(_self_dir, "core", "stage.py")
+PUBLISH_PIPELINE = os.path.join(_self_dir, "scripts", "publish_pipeline.sh")
+BUILDERS_DIR = os.path.join(_self_dir, "builders")
 ENV_FILE = os.path.join(WORKING_DIR, "config.env")
 
 # Allow importing core helpers
-sys.path.append(WORKING_DIR)
+sys.path.append(_self_dir)
 from core.index import (  # noqa: E402
     add_version,
     create_index_mdata,
@@ -29,6 +32,11 @@ from core.index import (  # noqa: E402
 )
 
 load_dotenv(ENV_FILE)
+
+# Ensure subprocesses (shell scripts) always have WORKING_DIR even if
+# config.env omits it — auto-detected from main.py's own location.
+if not os.environ.get("WORKING_DIR"):
+    os.environ["WORKING_DIR"] = WORKING_DIR
 
 _index_dir = os.getenv("INDEX_DIR", "metadata")
 _index_file = os.getenv("INDEX_FILE", "index.json")

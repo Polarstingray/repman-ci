@@ -2,47 +2,60 @@
 # setup.sh — Packaging script for repman-ci itself.
 # Invoked by data/start.sh inside the Docker builder container.
 # Argument $1 is the job working directory (set by start.sh).
+#
+# Output layout:
+#   out/bin/   — entrypoint executable (repcid)
+#   out/lib/   — Python code, pipeline scripts, builder configs
+#   out/data/  — runtime data, templates, documentation
 set -euo pipefail
 
 JOB_DIR="${1:-$(pwd)}"
 OUT_DIR="$JOB_DIR/out"
-PKG_DIR="$OUT_DIR/repman-ci"
+BIN_DIR="$OUT_DIR/bin"
+LIB_DIR="$OUT_DIR/lib"
+DATA_DIR="$OUT_DIR/data"
 
-mkdir -p "$PKG_DIR"
+mkdir -p "$BIN_DIR" "$LIB_DIR" "$DATA_DIR"
 
-cp -a "$JOB_DIR/main.py"          "$PKG_DIR/"
-cp -a "$JOB_DIR/core"             "$PKG_DIR/"
-cp -a "$JOB_DIR/scripts"          "$PKG_DIR/"
-cp -a "$JOB_DIR/data"             "$PKG_DIR/"
-cp -a "$JOB_DIR/builders"         "$PKG_DIR/"
-cp -a "$JOB_DIR/repman.sh"        "$PKG_DIR/"
-cp -a "$JOB_DIR/requirements.txt" "$PKG_DIR/"
-cp -a "$JOB_DIR/go_version"       "$PKG_DIR/"
+# --- Entrypoint ---
+cp -a "$JOB_DIR/repcid" "$BIN_DIR/"
+chmod +x "$BIN_DIR/repcid"
 
-[[ -f "$JOB_DIR/config.env.example" ]] && \
-  cp "$JOB_DIR/config.env.example" "$PKG_DIR/"
+# --- Library files (Python code, pipeline, builders) ---
+cp -a "$JOB_DIR/main.py"          "$LIB_DIR/"
+cp -a "$JOB_DIR/core"             "$LIB_DIR/"
+cp -a "$JOB_DIR/scripts"          "$LIB_DIR/"
+cp -a "$JOB_DIR/builders"         "$LIB_DIR/"
+cp -a "$JOB_DIR/requirements.txt" "$LIB_DIR/"
+cp -a "$JOB_DIR/go_version"       "$LIB_DIR/"
 
-cat > "$PKG_DIR/INSTALL.md" <<'EOF'
+# --- Data files (runtime data, templates, docs) ---
+cp -a "$JOB_DIR/data"             "$DATA_DIR/"
+[[ -f "$JOB_DIR/README.md" ]]          && cp "$JOB_DIR/README.md"          "$DATA_DIR/"
+[[ -f "$JOB_DIR/config.env.example" ]] && cp "$JOB_DIR/config.env.example" "$DATA_DIR/"
+
+cat > "$OUT_DIR/INSTALL.md" <<'EOF'
 # Installing repman-ci
 
 1. Copy this directory to your desired location:
        cp -r repman-ci /opt/repman-ci
 
 2. Copy and fill in the config:
-       cp /opt/repman-ci/config.env.example /opt/repman-ci/config.env
+       cp /opt/repman-ci/data/config.env.example /opt/repman-ci/config.env
        $EDITOR /opt/repman-ci/config.env
 
-3. Make the wrapper executable:
-       chmod +x /opt/repman-ci/repman.sh
+3. Make the entrypoint executable and bootstrap the Python venv:
+       chmod +x /opt/repman-ci/bin/repcid
+       /opt/repman-ci/bin/repcid get-env   # creates lib/.venv and installs deps on first run
 
 4. (Optional) Symlink for system-wide access:
-       ln -sf /opt/repman-ci/repman.sh /usr/local/bin/repman
+       ln -sf /opt/repman-ci/bin/repcid /usr/local/bin/repcid
 
 5. Verify:
-       /opt/repman-ci/repman.sh get-env
+       /opt/repman-ci/bin/repcid get-env
 
 6. Build Docker images:
-       /opt/repman-ci/scripts/build_images.sh
+       /opt/repman-ci/lib/scripts/build_images.sh
 EOF
 
-echo "repman-ci packaged in $PKG_DIR"
+echo "repman-ci packaged in $OUT_DIR"

@@ -2,7 +2,10 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
-source "$SCRIPT_DIR/../config.env"
+# Inherit WORKING_DIR from parent process or auto-detect (handles dev and installed layouts)
+_p="$(dirname "$SCRIPT_DIR")"; [[ "$(basename "$_p")" == lib ]] && _p="$(dirname "$_p")"
+: "${WORKING_DIR:=$_p}"; unset _p
+[[ -f "$WORKING_DIR/config.env" ]] && source "$WORKING_DIR/config.env"
 
 PROJECT="$1"
 BUILDER="${2:-$DEFAULT_BUILDER}"

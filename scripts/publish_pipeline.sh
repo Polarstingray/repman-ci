@@ -2,7 +2,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
-source "$SCRIPT_DIR/../config.env"
+# Auto-detect WORKING_DIR: parent of lib/ (installed) or parent of scripts/ (dev)
+_p="$(dirname "$SCRIPT_DIR")"; [[ "$(basename "$_p")" == lib ]] && _p="$(dirname "$_p")"
+: "${WORKING_DIR:=$_p}"; unset _p
+export WORKING_DIR
+[[ -f "$WORKING_DIR/config.env" ]] && source "$WORKING_DIR/config.env"
 source "$SCRIPT_DIR/validate_env.sh"
 
 usage() {
@@ -46,7 +50,7 @@ flock -n 9 || {
 # Check that each builder image exists before starting any work
 check_builder_image() {
   local builder="$1"
-  local yml="$WORKING_DIR/builders/${builder}-builder.yml"
+  local yml="$SCRIPT_DIR/../builders/${builder}-builder.yml"
 
   if [[ ! -f "$yml" ]]; then
     echo "[image-check] Builder file not found: $yml" >&2
