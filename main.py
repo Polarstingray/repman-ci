@@ -16,7 +16,7 @@ WORKING_DIR = os.path.dirname(_self_dir) if os.path.basename(_self_dir) == "lib"
 STAGE_SCRIPT = os.path.join(_self_dir, "core", "stage.py")
 PUBLISH_PIPELINE = os.path.join(_self_dir, "scripts", "publish_pipeline.sh")
 BUILDERS_DIR = os.path.join(_self_dir, "builders")
-ENV_FILE = os.path.join(WORKING_DIR, "config.env")
+ENV_FILE = os.path.join(WORKING_DIR, "data", "config.env")
 
 # Allow importing core helpers
 sys.path.append(_self_dir)

@@ -29,10 +29,10 @@ cp -a "$JOB_DIR/builders"         "$LIB_DIR/"
 cp -a "$JOB_DIR/requirements.txt" "$LIB_DIR/"
 cp -a "$JOB_DIR/go_version"       "$LIB_DIR/"
 
-# --- Data files (runtime data, templates, docs) ---
-cp -a "$JOB_DIR/data"             "$DATA_DIR/"
-[[ -f "$JOB_DIR/README.md" ]]          && cp "$JOB_DIR/README.md"          "$DATA_DIR/"
-[[ -f "$JOB_DIR/config.env.example" ]] && cp "$JOB_DIR/config.env.example" "$DATA_DIR/"
+# --- Data files (runtime data, templates, docs, config example) ---
+# config.env.example lives in data/ in the repo, so it's included automatically below.
+cp -a "$JOB_DIR/data"  "$DATA_DIR/"
+[[ -f "$JOB_DIR/README.md" ]] && cp "$JOB_DIR/README.md" "$DATA_DIR/"
 
 cat > "$OUT_DIR/INSTALL.md" <<'EOF'
 # Installing repman-ci
@@ -41,8 +41,8 @@ cat > "$OUT_DIR/INSTALL.md" <<'EOF'
        cp -r repman-ci /opt/repman-ci
 
 2. Copy and fill in the config:
-       cp /opt/repman-ci/data/config.env.example /opt/repman-ci/config.env
-       $EDITOR /opt/repman-ci/config.env
+       cp /opt/repman-ci/data/config.env.example /opt/repman-ci/data/config.env
+       $EDITOR /opt/repman-ci/data/config.env
 
 3. Make the entrypoint executable and bootstrap the Python venv:
        chmod +x /opt/repman-ci/bin/repcid
