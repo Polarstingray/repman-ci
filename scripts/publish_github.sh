@@ -2,10 +2,12 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
-# Inherit WORKING_DIR from parent process or auto-detect (handles dev and installed layouts)
+# Auto-detect install root from script location; source config.env; then pin WORKING_DIR
+# so that a hardcoded WORKING_DIR in config.env cannot override the real install path.
 _p="$(dirname "$SCRIPT_DIR")"; [[ "$(basename "$_p")" == lib ]] && _p="$(dirname "$_p")"
-: "${WORKING_DIR:=$_p}"; unset _p
-source "$WORKING_DIR/data/config.env" || { echo "[repcid] config.env not found at $WORKING_DIR/data/config.env" >&2; exit 1; }
+source "$_p/data/config.env" || { echo "[repcid] config.env not found at $_p/data/config.env" >&2; exit 1; }
+WORKING_DIR="$_p"; unset _p
+export WORKING_DIR
 
 usage() {
   echo "Usage: publish_github.sh <staging_dir> <pkg1> [pkg2 ...]" >&2

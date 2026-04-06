@@ -2,11 +2,12 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
-# Auto-detect WORKING_DIR: parent of lib/ (installed) or parent of scripts/ (dev)
+# Auto-detect install root; source config.env; then pin WORKING_DIR unconditionally
+# so a hardcoded WORKING_DIR in config.env cannot override the real install path.
 _p="$(dirname "$SCRIPT_DIR")"; [[ "$(basename "$_p")" == lib ]] && _p="$(dirname "$_p")"
-: "${WORKING_DIR:=$_p}"; unset _p
+source "$_p/data/config.env" || { echo "[repcid] config.env not found at $_p/data/config.env" >&2; exit 1; }
+WORKING_DIR="$_p"; unset _p
 export WORKING_DIR
-source "$WORKING_DIR/data/config.env" || { echo "[repcid] config.env not found at $WORKING_DIR/data/config.env" >&2; exit 1; }
 source "$SCRIPT_DIR/validate_env.sh"
 
 usage() {

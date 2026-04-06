@@ -29,6 +29,10 @@ cp -a "$JOB_DIR/builders"         "$LIB_DIR/"
 cp -a "$JOB_DIR/requirements.txt" "$LIB_DIR/"
 cp -a "$JOB_DIR/go_version"       "$LIB_DIR/"
 
+# --- Python virtual environment ---
+python3 -m venv "$LIB_DIR/.venv"
+"$LIB_DIR/.venv/bin/pip" install --quiet -r "$LIB_DIR/requirements.txt"
+
 # --- Data files (runtime data, templates, docs, config example) ---
 # config.env.example lives in data/ in the repo, so it's included automatically below.
 cp -a "$JOB_DIR/data"  "$DATA_DIR/"
@@ -44,9 +48,9 @@ cat > "$OUT_DIR/INSTALL.md" <<'EOF'
        cp /opt/repman-ci/data/config.env.example /opt/repman-ci/data/config.env
        $EDITOR /opt/repman-ci/data/config.env
 
-3. Make the entrypoint executable and bootstrap the Python venv:
+3. Make the entrypoint executable:
        chmod +x /opt/repman-ci/bin/repcid
-       /opt/repman-ci/bin/repcid get-env   # creates lib/.venv and installs deps on first run
+       # The Python venv is pre-built in lib/.venv — no bootstrapping needed.
 
 4. (Optional) Symlink for system-wide access:
        ln -sf /opt/repman-ci/bin/repcid /usr/local/bin/repcid
