@@ -33,10 +33,9 @@ from core.index import (  # noqa: E402
 
 load_dotenv(ENV_FILE)
 
-# Ensure subprocesses (shell scripts) always have WORKING_DIR even if
-# config.env omits it — auto-detected from main.py's own location.
-if not os.environ.get("WORKING_DIR"):
-    os.environ["WORKING_DIR"] = WORKING_DIR
+# Always pin WORKING_DIR to the auto-detected install root.
+# config.env may contain a stale hardcoded path; we must not let it win.
+os.environ["WORKING_DIR"] = WORKING_DIR
 
 _index_dir = os.getenv("INDEX_DIR", "metadata")
 _index_file = os.getenv("INDEX_FILE", "index.json")
