@@ -12,8 +12,7 @@ export WORKING_DIR
 PROJECT="$1"
 BUILDER="${2:-$DEFAULT_BUILDER}"
 
-CI_DIR="$WORKING_DIR"
-BUILD_DIR="$CI_DIR/builders"
+BUILD_DIR="$SCRIPT_DIR/../builders"
 DRY_RUN="${DRY_RUN:-0}"
 
 compose_up() {
