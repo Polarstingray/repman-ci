@@ -15,12 +15,14 @@ BUILDER="$3"
 
 CORE="$SCRIPT_DIR/../core"
 OUT_DIR="$WORKING_DIR/out"
+PYTHON="$SCRIPT_DIR/../.venv/bin/python3"
+[[ ! -x "$PYTHON" ]] && PYTHON="python3"  # fallback for dev layout without a venv
 
 VERSION_ARGS=()
 [[ -n "${EXPLICIT_VERSION:-}" ]] && VERSION_ARGS=(--version "$EXPLICIT_VERSION")
 
 PY_OUTPUT=$(
-  python3 "$CORE/stage.py" "$PROJECT" "$UPDATE_TYPE" -b "$BUILDER" "${VERSION_ARGS[@]}"
+  "$PYTHON" "$CORE/stage.py" "$PROJECT" "$UPDATE_TYPE" -b "$BUILDER" "${VERSION_ARGS[@]}"
 )
 
 PKG_NAME="$(echo "$PY_OUTPUT" | tail -n 1)"

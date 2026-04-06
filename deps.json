@@ -1,0 +1,5 @@
+{
+    "apt" : ["python3.12-venv"],
+    "pacman" : [],
+    "apk" : []
+}
