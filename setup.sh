@@ -35,7 +35,7 @@ python3 -m venv "$LIB_DIR/.venv"
 
 # --- Data files (runtime data, templates, docs, config example) ---
 # config.env.example lives in data/ in the repo, so it's included automatically below.
-cp -a "$JOB_DIR/data"  "$DATA_DIR/"
+cp -a "$JOB_DIR/data/." "$DATA_DIR/"
 [[ -f "$JOB_DIR/README.md" ]] && cp "$JOB_DIR/README.md" "$DATA_DIR/"
 
 cat > "$OUT_DIR/INSTALL.md" <<'EOF'

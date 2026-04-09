@@ -55,6 +55,21 @@ PKG_DIR="$STAGING_DIR/$PROJECT_NAME"
 INDEX_DIR_PATH="$STAGING_DIR/index"
 KEY_DIR="$STAGING_DIR/keys"
 
+if [[ "$DRY_RUN" == "1" ]]; then
+  # No tarball exists in dry-run — derive name/version from the package name string
+  NAME="$PROJECT_NAME"
+  _rest="${FIRST_PKG#${PROJECT_NAME}_v}"
+  VERSION="${_rest%%_*}"
+  TAG="${NAME}-v${VERSION}"
+  TITLE="$NAME $VERSION"
+  echo "[DRY-RUN] Would create/update release: $TAG ($TITLE)"
+  for PKG in "${PKG_NAMES[@]}"; do
+    echo "[DRY-RUN] Would upload: $PKG (.tar.gz + .minisig + .sha256)"
+  done
+  echo "[DRY-RUN] Would git push to: ${PUBLISH_BRANCH:-main}"
+  exit 0
+fi
+
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
@@ -86,15 +101,6 @@ echo "  Version : $VERSION"
 echo "  Tag     : $TAG"
 echo "  Targets : $TARGET_COUNT"
 echo
-
-if [[ "$DRY_RUN" == "1" ]]; then
-  echo "[DRY-RUN] Would create/update release: $TAG ($TITLE)"
-  for PKG in "${PKG_NAMES[@]}"; do
-    echo "[DRY-RUN] Would upload: $PKG (.tar.gz + .minisig + .sha256)"
-  done
-  echo "[DRY-RUN] Would git push to: $PUBLISH_BRANCH"
-  exit 0
-fi
 
 [[ -d "$STAGING_DIR/.git" ]] || {
   echo "Staging directory is not a git repository: $STAGING_DIR" >&2
