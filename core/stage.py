@@ -82,6 +82,12 @@ def main() -> None:
         metavar="X.Y.Z",
         help="Explicit version override. Skips automatic version bump.",
     )
+    parser.add_argument(
+        "--notes",
+        dest="notes",
+        default=None,
+        help="Release notes to attach to this version in the index.",
+    )
     args = parser.parse_args()
 
     metadata_file = args.metadata_file
@@ -109,18 +115,25 @@ def main() -> None:
 
     op_sys, arch = parse_builder(args.builder)
 
+    notes = args.notes or None
+
     if explicit_version:
         version = explicit_version
         pkg_url = f"{PKG_URL}/{args.name}-v{version}"
         if args.name not in metadata:
-            create_index_mdata(metadata, args.name, version, op_sys, arch, pkg_url)
+            create_index_mdata(metadata, args.name, version, op_sys, arch, pkg_url, notes=notes)
         else:
-            add_version(metadata, args.name, version, op_sys, arch, pkg_url)
+            add_version(metadata, args.name, version, op_sys, arch, pkg_url, notes=notes)
     else:
         version = INITIAL_VERSION
         pkg_url = f"{PKG_URL}/{args.name}-v{version}"
         if args.name not in metadata:
-            create_index_mdata(metadata, args.name, version, op_sys, arch, pkg_url)
+            if args.update_type != "new":
+                raise SystemExit(
+                    f"Package '{args.name}' is not in the index; "
+                    f"use update_type 'new' to register it."
+                )
+            create_index_mdata(metadata, args.name, version, op_sys, arch, pkg_url, notes=notes)
         else:
             if args.update_type == "new":
                 raise SystemExit(
@@ -128,11 +141,10 @@ def main() -> None:
                     f"'{args.name}' already exists. Use major/minor/patch instead."
                 )
             curr_version = get_version(metadata, args.name, op_sys, arch)
-            print(f"curr version: {curr_version}")
             if curr_version is not None:
                 version = update_version(curr_version, args.update_type)
             pkg_url = f"{PKG_URL}/{args.name}-v{version}"
-            add_version(metadata, args.name, version, op_sys, arch, pkg_url)
+            add_version(metadata, args.name, version, op_sys, arch, pkg_url, notes=notes)
 
     try:
         safe_write_json(metadata_file, metadata)

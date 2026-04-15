@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+# Dev-side wrapper that runs the server's repcid over SSH.
+# Single config knob: REPMAN_REMOTE (SSH destination — host alias, user@host, etc.)
+set -Eeuo pipefail
+
+err() { echo "[repcid-remote] $*" >&2; }
+
+if [[ -z "${REPMAN_REMOTE:-}" ]]; then
+  err "REPMAN_REMOTE is not set."
+  err "Set it to your SSH destination, e.g.:"
+  err "  export REPMAN_REMOTE=repman-server     # ~/.ssh/config alias"
+  err "  export REPMAN_REMOTE=user@host.tld"
+  exit 2
+fi
+
+if [[ $# -lt 1 ]]; then
+  err "Usage: repcid-remote <subcommand> [args...]"
+  exit 2
+fi
+
+SUBCMD="$1"; shift
+
+# If caller passed -N/--notes-file, the file is local — slurp and rewrite to -n <content>.
+rewrite_notes_file() {
+  local out=() i=0
+  local -a argv=("$@")
+  while (( i < ${#argv[@]} )); do
+    local a="${argv[i]}"
+    case "$a" in
+      -N|--notes-file)
+        local path="${argv[i+1]:-}"
+        if [[ -z "$path" ]]; then
+          err "$a requires a path argument"
+          exit 2
+        fi
+        if [[ ! -r "$path" ]]; then
+          err "notes file not readable: $path"
+          exit 2
+        fi
+        out+=("-n" "$(cat "$path")")
+        i=$((i+2))
+        ;;
+      --notes-file=*)
+        local path="${a#*=}"
+        if [[ ! -r "$path" ]]; then
+          err "notes file not readable: $path"
+          exit 2
+        fi
+        out+=("-n" "$(cat "$path")")
+        i=$((i+1))
+        ;;
+      *)
+        out+=("$a")
+        i=$((i+1))
+        ;;
+    esac
+  done
+  printf '%s\0' "${out[@]}"
+}
+
+# Quote argv safely for a remote shell.
+remote_quote() {
+  local q=""
+  for a in "$@"; do
+    q+=" $(printf '%q' "$a")"
+  done
+  printf '%s' "${q# }"
+}
+
+case "$SUBCMD" in
+  run|update)
+    if [[ $# -lt 2 ]]; then
+      err "$SUBCMD requires <project_path> <update_type>"
+      exit 2
+    fi
+    LOCAL_PATH="$1"; shift
+    if [[ ! -d "$LOCAL_PATH" ]]; then
+      err "project path is not a directory: $LOCAL_PATH"
+      exit 2
+    fi
+    LOCAL_PATH="$(cd "$LOCAL_PATH" && pwd)"
+    PROJECT_NAME="$(basename "$LOCAL_PATH")"
+
+    # Rewrite any -N/--notes-file to -n <content> (file is local).
+    mapfile -d '' REWRITTEN < <(rewrite_notes_file "$@")
+
+    REMOTE_TMP="$(ssh "$REPMAN_REMOTE" 'mktemp -d -t repcid-XXXXXX')"
+    if [[ -z "$REMOTE_TMP" ]]; then
+      err "failed to create remote temp dir"
+      exit 1
+    fi
+    # shellcheck disable=SC2064
+    trap "ssh '$REPMAN_REMOTE' rm -rf '$REMOTE_TMP' >/dev/null 2>&1 || true" EXIT
+
+    echo "[repcid-remote] syncing $LOCAL_PATH -> $REPMAN_REMOTE:$REMOTE_TMP/$PROJECT_NAME"
+    rsync -az --delete "$LOCAL_PATH/" "$REPMAN_REMOTE:$REMOTE_TMP/$PROJECT_NAME/"
+
+    REMOTE_ARGS="$(remote_quote "$SUBCMD" "$REMOTE_TMP/$PROJECT_NAME" "${REWRITTEN[@]}")"
+    # shellcheck disable=SC2029
+    exec ssh -t "$REPMAN_REMOTE" "repcid $REMOTE_ARGS"
+    ;;
+  *)
+    REMOTE_ARGS="$(remote_quote "$SUBCMD" "$@")"
+    # shellcheck disable=SC2029
+    exec ssh "$REPMAN_REMOTE" "repcid $REMOTE_ARGS"
+    ;;
+esac

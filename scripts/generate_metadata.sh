@@ -27,8 +27,12 @@ PYTHON="$SCRIPT_DIR/../.venv/bin/python3"
 VERSION_ARGS=()
 [[ -n "${EXPLICIT_VERSION:-}" ]] && VERSION_ARGS=(--version "$EXPLICIT_VERSION")
 
+NOTES_ARGS=()
+[[ -n "${RELEASE_NOTES:-}" ]] && NOTES_ARGS=(--notes "$RELEASE_NOTES")
+
 PY_OUTPUT=$(
-  "$PYTHON" "$CORE/stage.py" "$PROJECT" "$UPDATE_TYPE" -b "$BUILDER" "${VERSION_ARGS[@]}"
+  "$PYTHON" "$CORE/stage.py" "$PROJECT" "$UPDATE_TYPE" -b "$BUILDER" \
+    "${VERSION_ARGS[@]}" "${NOTES_ARGS[@]}"
 )
 
 PKG_NAME="$(echo "$PY_OUTPUT" | tail -n 1)"

@@ -24,7 +24,6 @@ echo "Staging directory: $STAGING"
 echo "Project name: $PROJECT_NAME"
 
 mkdir -p "$STAGING/$PROJECT_NAME/signatures"
-mkdir -p "$STAGING/$PROJECT_NAME/keys"
 mkdir -p "$STAGING/index"
 INDEX="$WORKING_DIR/$INDEX_DIR/$INDEX_FILE"
 

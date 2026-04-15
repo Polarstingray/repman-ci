@@ -131,9 +131,14 @@ fi
 if gh release view "$TAG" >/dev/null 2>&1; then
   echo "GitHub release exists — uploading assets"
 else
-  gh release create "$TAG" \
-    --title "$TITLE" \
-    --notes "Automated release of $NAME version $VERSION"
+  if [[ -n "${RELEASE_NOTES:-}" ]]; then
+    NOTES_FILE="$TMP_DIR/release_notes.md"
+    printf '%s\n' "$RELEASE_NOTES" > "$NOTES_FILE"
+    gh release create "$TAG" --title "$TITLE" --notes-file "$NOTES_FILE"
+  else
+    gh release create "$TAG" --title "$TITLE" \
+      --notes "Automated release of $NAME version $VERSION"
+  fi
   _RELEASE_CREATED=1
 fi
 
