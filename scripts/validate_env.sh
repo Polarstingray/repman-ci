@@ -30,6 +30,7 @@ validate_config() {
     _require_var DEFAULT_STAGE
     _require_var GITHUB_REPO
     _require_var SIG_PASS
+    _require_var CI_KEY
     _require_var INDEX_DIR
     _require_var INDEX_FILE
     _require_var PUB_KEY1

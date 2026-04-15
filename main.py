@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
 import argparse
+import getpass
 import json
 import os
 import sys
 import shutil
-from subprocess import run, CalledProcessError
+from subprocess import run, CalledProcessError, DEVNULL
 
 from dotenv import load_dotenv
 
@@ -20,6 +21,7 @@ ENV_FILE = os.path.join(WORKING_DIR, "data", "config.env")
 
 # Allow importing core helpers
 sys.path.append(_self_dir)
+from core.keygen import update_config_env  # noqa: E402
 from core.index import (  # noqa: E402
     add_version,
     create_index_mdata,
@@ -40,6 +42,10 @@ os.environ["WORKING_DIR"] = WORKING_DIR
 _index_dir = os.getenv("INDEX_DIR", "metadata")
 _index_file = os.getenv("INDEX_FILE", "index.json")
 INDEX_PATH = os.path.join(WORKING_DIR, _index_dir, _index_file)
+
+# Key storage defaults to $WORKING_DIR/keys so dev and installed layouts are
+# each self-contained (no collision with an existing system-wide key).
+DEFAULT_KEY_DIR = os.path.join(WORKING_DIR, "keys")
 
 ALL_LINUX_BUILDERS = [
     "ubuntu_amd64",
@@ -271,6 +277,174 @@ def cmd_config(_: argparse.Namespace) -> int:
         return exc.returncode or 1
 
 
+def _get_builder_image(builder_name: str):
+    """Read the 'image:' field from a builder YAML. Returns None if not found."""
+    yml = os.path.join(BUILDERS_DIR, f"{builder_name}-builder.yml")
+    if not os.path.exists(yml):
+        return None
+    with open(yml) as f:
+        for line in f:
+            stripped = line.strip()
+            if stripped.startswith("image:"):
+                return stripped.split(":", 1)[1].strip()
+    return None
+
+
+def cmd_keygen(args: argparse.Namespace) -> int:
+    key_dir = os.path.expanduser(args.key_dir)
+    priv_path = os.path.join(key_dir, "ci.key")
+    pub_path = os.path.join(key_dir, "ci.pub")
+
+    if (os.path.exists(priv_path) or os.path.exists(pub_path)) and not args.force:
+        print("[keygen] Key(s) already exist:")
+        if os.path.exists(priv_path):
+            print(f"  private: {priv_path}")
+        if os.path.exists(pub_path):
+            print(f"  public:  {pub_path}")
+        print("[keygen] Use --force to overwrite.")
+        return 1
+
+    os.makedirs(key_dir, exist_ok=True)
+    print(f"[keygen] Generating minisign keypair in {key_dir}/")
+    print("[keygen] You will be prompted to set a passphrase.\n")
+
+    minisign_cmd = ["minisign", "-G", "-p", pub_path, "-s", priv_path]
+    if args.force:
+        # minisign refuses to overwrite without its own -f flag, so our
+        # --force must propagate to the underlying tool.
+        minisign_cmd.insert(2, "-f")
+    result = run(minisign_cmd)
+    if result.returncode != 0:
+        print("[keygen] minisign key generation failed.", file=sys.stderr)
+        return result.returncode
+
+    if not os.path.exists(priv_path) or not os.path.exists(pub_path):
+        print("[keygen] Key files not created (aborted?).", file=sys.stderr)
+        return 1
+
+    print(f"\n[keygen] Private key: {priv_path}")
+    print(f"[keygen] Public key:  {pub_path}")
+
+    if args.no_config:
+        return 0
+
+    answer = input("\n[keygen] Update config.env with these key paths and passphrase? [y/N] ").strip().lower()
+    if answer != "y":
+        print("[keygen] config.env not modified.")
+        return 0
+
+    sig_pass = getpass.getpass("[keygen] Enter the passphrase you just set: ")
+    update_config_env(ENV_FILE, {
+        "CI_KEY": priv_path,
+        "PUB_KEY1": pub_path,
+        "SIG_PASS": sig_pass,
+    })
+    print(f"[keygen] Updated {ENV_FILE}")
+    return 0
+
+
+def cmd_doctor(args: argparse.Namespace) -> int:
+    # Each check: (label, passed, message, critical)
+    results = []
+
+    def _chk(label, passed, msg, critical=True):
+        results.append((label, passed, msg, critical))
+
+    # 1. External tools
+    for tool in ["docker", "gh", "minisign", "jq", "sha256sum", "rsync"]:
+        found = shutil.which(tool) is not None
+        _chk(f"tool:{tool}", found, shutil.which(tool) or "NOT FOUND")
+
+    # 2. config.env exists
+    _chk("config.env", os.path.exists(ENV_FILE), ENV_FILE)
+
+    # 3. Required env vars
+    required = [
+        "WORKING_DIR", "DEFAULT_BUILDER", "DEFAULT_STAGE", "GITHUB_REPO",
+        "SIG_PASS", "CI_KEY", "INDEX_DIR", "INDEX_FILE", "PUB_KEY1",
+    ]
+    for var in required:
+        val = os.getenv(var, "")
+        _chk(f"env:{var}", bool(val), "<set>" if val else "<MISSING>")
+
+    # 4. CI_KEY readable
+    ci_key = os.getenv("CI_KEY", "")
+    if ci_key:
+        ok = os.path.isfile(ci_key) and os.access(ci_key, os.R_OK)
+        _chk("CI_KEY readable", ok, ci_key if ok else f"{ci_key} (not found or not readable)")
+
+    # 5. PUB_KEY1 exists
+    pub_key = os.getenv("PUB_KEY1", "")
+    if pub_key:
+        if not os.path.isabs(pub_key):
+            pub_key = os.path.join(WORKING_DIR, pub_key)
+        _chk("PUB_KEY1 exists", os.path.isfile(pub_key), pub_key)
+
+    # 6. DEFAULT_STAGE directory exists (non-critical)
+    stage = os.getenv("DEFAULT_STAGE", "")
+    if stage:
+        _chk("DEFAULT_STAGE", os.path.isdir(stage), stage, critical=False)
+
+    # 7. gh auth
+    if shutil.which("gh"):
+        result = run(["gh", "auth", "status"], capture_output=True)
+        _chk("gh auth", result.returncode == 0,
+             "authenticated" if result.returncode == 0 else "NOT authenticated (run: gh auth login)")
+    else:
+        _chk("gh auth", False, "gh not on PATH — skipped")
+
+    # 8. Docker daemon
+    if shutil.which("docker"):
+        result = run(["docker", "info"], capture_output=True)
+        _chk("docker daemon", result.returncode == 0,
+             "running" if result.returncode == 0 else "NOT running")
+    else:
+        _chk("docker daemon", False, "docker not on PATH — skipped")
+
+    # 8b. Docker compose v2 (the pipeline uses `docker compose`, not `docker-compose`)
+    if shutil.which("docker"):
+        result = run(["docker", "compose", "version"], capture_output=True)
+        _chk("docker compose", result.returncode == 0,
+             "available" if result.returncode == 0 else "NOT available (install docker compose v2)")
+    else:
+        _chk("docker compose", False, "docker not on PATH — skipped")
+
+    # 9. Builder images
+    builder_spec = args.builder or os.getenv("DEFAULT_BUILDER", "ubuntu_amd64")
+    for builder in _resolve_builders(builder_spec):
+        image = _get_builder_image(builder)
+        if image is None:
+            _chk(f"image:{builder}", False, f"builder YAML not found for '{builder}'")
+            continue
+        if not shutil.which("docker"):
+            _chk(f"image:{builder}", False, "docker not on PATH — skipped")
+            continue
+        result = run(["docker", "image", "inspect", image], capture_output=True)
+        ok = result.returncode == 0
+        _chk(f"image:{builder}", ok,
+             f"'{image}' exists" if ok else f"'{image}' not found (run: scripts/build_images.sh {builder})")
+
+    # --- Print results ---
+    label_width = max(len(r[0]) for r in results)
+    any_critical_fail = False
+    for label, passed, msg, critical in results:
+        if passed:
+            status = "PASS"
+        elif not critical:
+            status = "WARN"
+        else:
+            status = "FAIL"
+            any_critical_fail = True
+        print(f"  [{status:<4}] {label:<{label_width}}  {msg}")
+
+    print()
+    if any_critical_fail:
+        print("doctor: one or more critical checks failed.")
+        return 1
+    print("doctor: all critical checks passed.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Repman CI Runner")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -373,6 +547,26 @@ def build_parser() -> argparse.ArgumentParser:
     # config
     sp = sub.add_parser("config", help="Open config.env in $EDITOR (default nano)")
     sp.set_defaults(func=cmd_config)
+
+    # keygen
+    sp = sub.add_parser("keygen", help="Generate a minisign keypair for signing")
+    sp.add_argument(
+        "--key-dir",
+        default=DEFAULT_KEY_DIR,
+        help=f"Directory to store keys (default: {DEFAULT_KEY_DIR})",
+    )
+    sp.add_argument("-f", "--force", action="store_true", help="Overwrite existing keys without prompting")
+    sp.add_argument("--no-config", action="store_true", help="Skip the offer to update config.env")
+    sp.set_defaults(func=cmd_keygen)
+
+    # doctor
+    sp = sub.add_parser("doctor", help="Run pre-flight health checks")
+    sp.add_argument(
+        "--builder",
+        default=None,
+        help="Builder(s) to check images for (default: DEFAULT_BUILDER from config)",
+    )
+    sp.set_defaults(func=cmd_doctor)
 
     return p
 

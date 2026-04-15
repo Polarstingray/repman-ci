@@ -8,9 +8,12 @@ __pycache__/
 *cache*
 *ci.key*
 *.key*
+keys/
 venv/
 .venv/
 *__pycache__*
 CLAUDE.md
 .test_tmp.*
 tests/bats-core/
+test.pub
+.*
