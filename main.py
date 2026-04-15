@@ -23,9 +23,6 @@ ENV_FILE = os.path.join(WORKING_DIR, "data", "config.env")
 sys.path.append(_self_dir)
 from core.keygen import update_config_env  # noqa: E402
 from core.index import (  # noqa: E402
-    add_version,
-    create_index_mdata,
-    create_pkg_md,
     edit_target,
     get_version,
     package_name,
@@ -103,11 +100,6 @@ def cmd_get_builders(_: argparse.Namespace) -> int:
         full = os.path.join(BUILDERS_DIR, entry)
         if os.path.isfile(full) and entry.endswith((".yml", ".yaml")):
             builders.append(entry)
-        # also surface docker subdir flavors
-        if os.path.isdir(full) and entry == "docker":
-            for f in sorted(os.listdir(full)):
-                if os.path.isfile(os.path.join(full, f)):
-                    builders.append(os.path.join("docker", f))
     for b in builders:
         print(b)
     return 0
@@ -190,6 +182,20 @@ def cmd_remove_version(args: argparse.Namespace) -> int:
     return 0
 
 
+def _resolve_notes(args: argparse.Namespace):
+    """Return notes text from --notes, --notes-file, or None."""
+    if getattr(args, "notes", None):
+        return args.notes
+    path = getattr(args, "notes_file", None)
+    if path:
+        try:
+            with open(os.path.expanduser(path), "r") as f:
+                return f.read().rstrip("\n")
+        except OSError as exc:
+            raise SystemExit(f"Failed to read notes file {path}: {exc}")
+    return None
+
+
 def cmd_stage(args: argparse.Namespace) -> int:
     # Proxy to core/stage.py so logic stays single-sourced
     cmd = [sys.executable, STAGE_SCRIPT, args.name, args.update_type]
@@ -203,6 +209,9 @@ def cmd_stage(args: argparse.Namespace) -> int:
         cmd += ["--out-dir", args.out_dir]
     if args.explicit_version:
         cmd += ["--version", args.explicit_version]
+    notes = _resolve_notes(args)
+    if notes:
+        cmd += ["--notes", notes]
     try:
         env = os.environ.copy()
         env["PYTHONUNBUFFERED"] = "1"
@@ -227,6 +236,10 @@ def cmd_run(args: argparse.Namespace) -> int:
         env["EXPLICIT_VERSION"] = args.explicit_version
     if args.dry_run:
         env["DRY_RUN"] = "1"
+
+    notes = _resolve_notes(args)
+    if notes:
+        env["RELEASE_NOTES"] = notes
 
     if shutil.which("stdbuf"):
         base_cmd = ["stdbuf", "-oL", "-eL", "bash", PUBLISH_PIPELINE]
@@ -472,6 +485,20 @@ def build_parser() -> argparse.ArgumentParser:
         default=False,
         help="Print what would happen without executing builds or publishing.",
     )
+    _notes_group = _run_parent.add_mutually_exclusive_group()
+    _notes_group.add_argument(
+        "-n", "--notes",
+        dest="notes",
+        default=None,
+        help="Release notes text (attached to GitHub release and stored in index).",
+    )
+    _notes_group.add_argument(
+        "-N", "--notes-file",
+        dest="notes_file",
+        default=None,
+        metavar="PATH",
+        help="Path to a file whose contents will be used as release notes.",
+    )
 
     # get-index
     sp = sub.add_parser("get-index", help="Print the metadata index JSON")
@@ -512,6 +539,20 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         metavar="X.Y.Z",
         help="Explicit version override. Skips automatic version bump.",
+    )
+    _stage_notes = sp.add_mutually_exclusive_group()
+    _stage_notes.add_argument(
+        "-n", "--notes",
+        dest="notes",
+        default=None,
+        help="Release notes text to store on this version in the index.",
+    )
+    _stage_notes.add_argument(
+        "-N", "--notes-file",
+        dest="notes_file",
+        default=None,
+        metavar="PATH",
+        help="Path to a file whose contents will be used as release notes.",
     )
     sp.set_defaults(func=cmd_stage)
 

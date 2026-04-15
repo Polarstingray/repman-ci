@@ -7,7 +7,7 @@ PACKAGE_DIR = "https://example.com/package"
 
 # Index helpers for package metadata management
 
-def create_index_mdata(metadata, name, version, os, arch, url=PACKAGE_DIR) -> dict:
+def create_index_mdata(metadata, name, version, os, arch, url=PACKAGE_DIR, notes=None) -> dict:
     """Initialize index metadata entry for a package.
 
     Args:
@@ -19,19 +19,20 @@ def create_index_mdata(metadata, name, version, os, arch, url=PACKAGE_DIR) -> di
     Returns:
         The mutated metadata dict.
     """
+    version_entry = {
+        "targets": {
+            f"{os}_{arch}": {
+                "url": f"{url}",
+                "signature": f"{package_name(name, version, os, arch, 1)}",
+                "sha256" : f"{package_name(name, version, os, arch, 2)}"
+            }
+        }
+    }
+    if notes:
+        version_entry["notes"] = notes
     metadata[name] = {
         "latest": version,
-        "versions": {
-            f"{version}": {
-                "targets": {
-                    f"{os}_{arch}": {
-                        "url": f"{url}",
-                        "signature": f"{package_name(name, version, os, arch, 1)}",
-                        "sha256" : f"{package_name(name, version, os, arch, 2)}"
-                    }
-                }
-            }
-        },
+        "versions": {f"{version}": version_entry},
     }
     return metadata
 
@@ -60,16 +61,16 @@ def greater_version(v1: str, v2: str) -> bool:
     return False
 
 
-def add_version(metadata, name, version, os, arch, url=PACKAGE_DIR):
+def add_version(metadata, name, version, os, arch, url=PACKAGE_DIR, notes=None):
     """Add a version for a given os/arch target, updating latest if needed."""
     if metadata.get(name) is None:
-        create_index_mdata(metadata, name, version, os, arch, url)
+        create_index_mdata(metadata, name, version, os, arch, url, notes=notes)
         return metadata
 
     if greater_version(version, metadata[name]["latest"]):
         metadata[name]["latest"] = version
     if metadata[name]["versions"].get(version) is None:
-        metadata[name]["versions"][version] = {
+        version_entry = {
             "targets": {
                 f"{os}_{arch}": {
                     "url": f"{url}",
@@ -78,6 +79,9 @@ def add_version(metadata, name, version, os, arch, url=PACKAGE_DIR):
                 }
             }
         }
+        if notes:
+            version_entry["notes"] = notes
+        metadata[name]["versions"][version] = version_entry
     else:
         if (
             metadata[name]["versions"][version]
@@ -128,7 +132,6 @@ def create_pkg_md(name: str, version: str, os: str, arch: str, dep: dict=None) -
     return metadata
 
 
-# Fix me: not sure if hardcoding .tar.gz.minisig here is a good idea.
 def package_name(name: str, version: str="", os: str="", arch: str="", sig: int=0) -> str:
     """Create a package name from the package name and metadata."""
 

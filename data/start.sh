@@ -15,7 +15,6 @@ if ! SCHEDULED=$(ls -t "$TODO_DIR" 2>/dev/null | head -n 1); then
 fi
 
 if [[ -z "${SCHEDULED:-}" ]]; then
-  :
   exit 0
 fi
 
@@ -30,7 +29,6 @@ if [[ ! -d "$SRC_JOB_DIR" ]]; then
 fi
 
 # Move job into working directory atomically
-:
 cp -a "$SRC_JOB_DIR" "$WORKING_DIR/"
 
 # Install per-project runtime dependencies declared in deps.json
@@ -74,7 +72,6 @@ fi
 chmod +x "$SETUP_SH"
 
 # Execute setup with job working dir as argument
-:
 "$SETUP_SH" "$JOB_WORK_DIR"
 
 # Prepare complete dir and move outputs if present
@@ -86,15 +83,9 @@ if [[ -d "$OUT_DIR" ]]; then
   shopt -s nullglob dotglob
   files=("$OUT_DIR"/*)
   if (( ${#files[@]} > 0 )); then
-    :
     mv "${files[@]}" "$COMPLETE_DIR/"
-  else
-    :
   fi
   shopt -u nullglob dotglob
-else
-  :
 fi
 
 chown -R 1000:1000 "$COMPLETE_DIR" || true
-:
