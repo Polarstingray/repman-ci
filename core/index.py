@@ -7,6 +7,27 @@ PACKAGE_DIR = "https://example.com/package"
 
 # Index helpers for package metadata management
 
+def _make_target_entry(name, version, os, arch, url) -> dict:
+    """Build the single-target dict for a given os/arch build."""
+    return {
+        "url": f"{url}",
+        "signature": f"{package_name(name, version, os, arch, 1)}",
+        "sha256": f"{package_name(name, version, os, arch, 2)}",
+    }
+
+
+def _new_version_entry(name, version, os, arch, url, notes=None) -> dict:
+    """Build a version entry containing a single os/arch target and optional notes."""
+    version_entry = {
+        "targets": {
+            f"{os}_{arch}": _make_target_entry(name, version, os, arch, url)
+        }
+    }
+    if notes:
+        version_entry["notes"] = notes
+    return version_entry
+
+
 def create_index_mdata(metadata, name, version, os, arch, url=PACKAGE_DIR, notes=None) -> dict:
     """Initialize index metadata entry for a package.
 
@@ -19,17 +40,7 @@ def create_index_mdata(metadata, name, version, os, arch, url=PACKAGE_DIR, notes
     Returns:
         The mutated metadata dict.
     """
-    version_entry = {
-        "targets": {
-            f"{os}_{arch}": {
-                "url": f"{url}",
-                "signature": f"{package_name(name, version, os, arch, 1)}",
-                "sha256" : f"{package_name(name, version, os, arch, 2)}"
-            }
-        }
-    }
-    if notes:
-        version_entry["notes"] = notes
+    version_entry = _new_version_entry(name, version, os, arch, url, notes=notes)
     metadata[name] = {
         "latest": version,
         "versions": {f"{version}": version_entry},
@@ -70,18 +81,9 @@ def add_version(metadata, name, version, os, arch, url=PACKAGE_DIR, notes=None):
     if greater_version(version, metadata[name]["latest"]):
         metadata[name]["latest"] = version
     if metadata[name]["versions"].get(version) is None:
-        version_entry = {
-            "targets": {
-                f"{os}_{arch}": {
-                    "url": f"{url}",
-                    "signature": f"{package_name(name, version, os, arch, 1)}",
-                    "sha256" : f"{package_name(name, version, os, arch, 2)}"
-                }
-            }
-        }
-        if notes:
-            version_entry["notes"] = notes
-        metadata[name]["versions"][version] = version_entry
+        metadata[name]["versions"][version] = _new_version_entry(
+            name, version, os, arch, url, notes=notes
+        )
     else:
         if (
             metadata[name]["versions"][version]
@@ -89,11 +91,9 @@ def add_version(metadata, name, version, os, arch, url=PACKAGE_DIR, notes=None):
             .get(f"{os}_{arch}")
             is None
         ):
-            metadata[name]["versions"][version]["targets"][f"{os}_{arch}"] = {
-                "url": f"{url}",
-                "signature": f"{package_name(name, version, os, arch, 1)}",
-                "sha256" : f"{package_name(name, version, os, arch, 2)}"
-            }
+            metadata[name]["versions"][version]["targets"][f"{os}_{arch}"] = (
+                _make_target_entry(name, version, os, arch, url)
+            )
         else:
             print(f"Version {version} already exists for program {name}.")
             return None
