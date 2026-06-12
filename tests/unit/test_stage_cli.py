@@ -126,6 +126,43 @@ class TestStageCLI:
             assert pkg_md["os"] == "ubuntu"
             assert pkg_md["arch"] == "amd64"
 
+    def test_existing_package_new_arch_minor_bump_from_global_latest(self):
+        with tempfile.TemporaryDirectory() as d:
+            mf = os.path.join(d, "metadata", "index.json")
+            od = os.path.join(d, "out")
+            # Create package at ubuntu_amd64 (lands at 1.0.0)
+            run_stage("myprog", "new", "-b", "ubuntu_amd64", metadata_file=mf, out_dir=od)
+            # Stage a minor bump for a brand-new builder
+            rc, out, err, _, _ = run_stage("myprog", "minor", "-b", "arch_amd64",
+                                            metadata_file=mf, out_dir=od)
+            assert rc == 0, err
+            with open(mf) as f:
+                idx = json.load(f)
+            # Bumped from global latest (1.0.0) -> 1.1.0, not reset to 1.0.0
+            assert idx["myprog"]["latest"] == "1.1.0"
+            assert "1.1.0" in idx["myprog"]["versions"]
+            assert "arch_amd64" in idx["myprog"]["versions"]["1.1.0"]["targets"]
+            pkg_name = out.strip().splitlines()[-1]
+            assert pkg_name == "myprog_v1.1.0_arch_amd64"
+
+    def test_restage_same_version_same_arch_exits_cleanly_no_pkg_name(self):
+        with tempfile.TemporaryDirectory() as d:
+            mf = os.path.join(d, "metadata", "index.json")
+            od = os.path.join(d, "out")
+            # Stage explicit version 2.0.0
+            run_stage("myprog", "new", "-b", "ubuntu_amd64", "--version", "2.0.0",
+                      metadata_file=mf, out_dir=od)
+            # Re-stage the exact same version+arch
+            rc, out, err, _, _ = run_stage("myprog", "patch", "-b", "ubuntu_amd64",
+                                            "--version", "2.0.0",
+                                            metadata_file=mf, out_dir=od)
+            # Exit cleanly (no-op, not a build failure)
+            assert rc == 0, err
+            # Package name must NOT be emitted so the pipeline does not proceed
+            assert "myprog_v2.0.0_ubuntu_amd64" not in out
+            assert "has been staged" not in out
+            assert "nothing to do" in out
+
     def test_metadata_file_and_out_dir_flags_are_respected(self):
         with tempfile.TemporaryDirectory() as d:
             custom_mf = os.path.join(d, "custom", "my_index.json")
