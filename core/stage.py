@@ -11,6 +11,7 @@ _lib_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # core/.
 # Support installed layout (core/ inside lib/) or dev layout (core/ at root)
 WORKING_DIR = os.path.dirname(_lib_dir) if os.path.basename(_lib_dir) == "lib" else _lib_dir
 sys.path.append(_lib_dir)
+from core.builders import parse_builder
 from core.index import (
     add_version,
     create_index_mdata,
@@ -34,10 +35,6 @@ INITIAL_VERSION = "1.0.0"
 
 SEMVER_RE = re.compile(r'^\d+\.\d+\.\d+$')
 
-
-def parse_builder(builder: str) -> tuple:
-    op_sys, arch = builder.split("_")
-    return op_sys, arch
 
 def ensure_environment(metadata_file: str, out_dir: str) -> None:
     os.makedirs(os.path.dirname(metadata_file), exist_ok=True)
@@ -113,7 +110,10 @@ def main() -> None:
         print(f"Failed to initialize environment or read metadata: {exc}")
         raise SystemExit(1)
 
-    op_sys, arch = parse_builder(args.builder)
+    try:
+        op_sys, arch = parse_builder(args.builder)
+    except ValueError as exc:
+        raise SystemExit(str(exc))
 
     notes = args.notes or None
 
@@ -123,7 +123,12 @@ def main() -> None:
         if args.name not in metadata:
             create_index_mdata(metadata, args.name, version, op_sys, arch, pkg_url, notes=notes)
         else:
-            add_version(metadata, args.name, version, op_sys, arch, pkg_url, notes=notes)
+            if add_version(metadata, args.name, version, op_sys, arch, pkg_url, notes=notes) is None:
+                print(
+                    f"Version {version} for {args.name} "
+                    f"({op_sys}_{arch}) already published; nothing to do."
+                )
+                raise SystemExit(0)
     else:
         version = INITIAL_VERSION
         pkg_url = f"{PKG_URL}/{args.name}-v{version}"
@@ -141,10 +146,18 @@ def main() -> None:
                     f"'{args.name}' already exists. Use major/minor/patch instead."
                 )
             curr_version = get_version(metadata, args.name, op_sys, arch)
-            if curr_version is not None:
-                version = update_version(curr_version, args.update_type)
+            if curr_version is None:
+                # No prior build for this os_arch; bump from the package's
+                # global latest so a new platform tracks the real version.
+                curr_version = metadata[args.name]["latest"]
+            version = update_version(curr_version, args.update_type)
             pkg_url = f"{PKG_URL}/{args.name}-v{version}"
-            add_version(metadata, args.name, version, op_sys, arch, pkg_url, notes=notes)
+            if add_version(metadata, args.name, version, op_sys, arch, pkg_url, notes=notes) is None:
+                print(
+                    f"Version {version} for {args.name} "
+                    f"({op_sys}_{arch}) already published; nothing to do."
+                )
+                raise SystemExit(0)
 
     try:
         safe_write_json(metadata_file, metadata)

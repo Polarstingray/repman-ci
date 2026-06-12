@@ -22,6 +22,7 @@ ENV_FILE = os.path.join(WORKING_DIR, "data", "config.env")
 # Allow importing core helpers
 sys.path.append(_self_dir)
 from core.keygen import update_config_env  # noqa: E402
+from core.builders import parse_builder  # noqa: E402
 from core.index import (  # noqa: E402
     edit_target,
     get_version,
@@ -105,20 +106,16 @@ def cmd_get_builders(_: argparse.Namespace) -> int:
     return 0
 
 
-def _parse_builder(builder: str) -> tuple:
-    parts = builder.split("_")
-    if len(parts) != 2:
-        raise SystemExit("Builder must be in the form '<os>_<arch>' e.g., 'ubuntu_amd64'")
-    return parts[0], parts[1]
-
-
 def cmd_get_version(args: argparse.Namespace) -> int:
     md = _load_index(args.index)
     if not args.name:
         raise SystemExit("--name is required")
     if not args.builder:
         raise SystemExit("--builder is required and must be like 'ubuntu_amd64'")
-    os_name, arch = _parse_builder(args.builder)
+    try:
+        os_name, arch = parse_builder(args.builder)
+    except ValueError as exc:
+        raise SystemExit(str(exc))
     ver = get_version(md, args.name, os_name, arch)
     if ver is None:
         print("None")

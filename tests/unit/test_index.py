@@ -139,11 +139,24 @@ class TestAddVersion:
     def test_duplicate_target_is_noop(self, capsys):
         md = {}
         add_version(md, "p", "1.0.0", "ubuntu", "amd64")
-        add_version(md, "p", "1.0.0", "ubuntu", "amd64")
+        result = add_version(md, "p", "1.0.0", "ubuntu", "amd64")
         captured = capsys.readouterr()
         assert "already exists" in captured.out
+        # Duplicate target signals a no-op by returning None
+        assert result is None
         # Only one target entry
         assert len(md["p"]["versions"]["1.0.0"]["targets"]) == 1
+
+    def test_duplicate_target_returns_none(self):
+        md = {}
+        add_version(md, "p", "1.0.0", "ubuntu", "amd64")
+        assert add_version(md, "p", "1.0.0", "ubuntu", "amd64") is None
+
+    def test_non_duplicate_returns_metadata(self):
+        md = {}
+        assert add_version(md, "p", "1.0.0", "ubuntu", "amd64") is md
+        assert add_version(md, "p", "1.1.0", "ubuntu", "amd64") is md
+        assert add_version(md, "p", "1.1.0", "debian", "amd64") is md
 
     def test_new_target_on_existing_version_is_added(self):
         md = {}
