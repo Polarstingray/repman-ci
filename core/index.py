@@ -96,7 +96,7 @@ def add_version(metadata, name, version, os, arch, url=PACKAGE_DIR, notes=None):
             }
         else:
             print(f"Version {version} already exists for program {name}.")
-            return metadata
+            return None
     return metadata
 
 
