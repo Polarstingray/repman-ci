@@ -67,18 +67,18 @@ ci_runner/
 ├── builders/            # Docker builder definitions
 │   └── ubuntu-builder.yml
 ├── core/
-│   └── stage.py         # Metadata + index logic
+│   └── stage.py         # Staging CLI (index helpers in index.py)
 ├── scripts/             # Pipeline scripts
 │   ├── publish_pipeline.sh
 │   ├── prepare_stage.sh
 │   ├── build_artifact.sh
 │   ├── generate_metadata.sh
-│   ├── package_and_sign.sh
+│   ├── package_sign.sh
 │   ├── stage_artifacts.sh
 │   └── publish_github.sh
 ├── src/                 # Staged project source (ephemeral)
 ├── out/                 # Build outputs (ephemeral)
-├── .env                 # Configuration
+├── data/config.env      # Configuration
 └── README.md
 ```
 
@@ -135,7 +135,7 @@ Create `.env`:
 ```env
 WORKING_DIR=/srv/docker/ci_runner
 DEFAULT_STAGE=/srv/packages
-DEFAULT_BUILDER=ubuntu
+DEFAULT_BUILDER=ubuntu_amd64
 SIG_PASS=your_minisign_password
 ```
 
@@ -151,7 +151,7 @@ Ensure:
 ### 3. Publishing a Project
 
 ```bash
-./publish_pipeline.sh <project_path> <update_type> [builder] [staging_dir]
+scripts/publish_pipeline.sh <project_path> <update_type> [builder] [staging_dir]
 ```
 
 Example:
@@ -197,7 +197,7 @@ GitHub is used **only as a blob store and index**, not as a build system.
 
 ---
 
-## Wyse Index
+## Metadata Index
 
 The Wyse index tracks the latest trusted releases.
 
