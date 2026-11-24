@@ -1,9 +1,9 @@
 """Trust-root consistency (Contract §7).
 
-The single canonical signing key is repman-ci/keys/ci.key; the ci.pub that
-clients trust must be its public half, and must match the pinned fingerprint.
-These tests catch exactly the drift that previously shipped a distributed ci.pub
-(6FC86DD...) that did not match the CI's signing key (7C3341...).
+The signing key lives only on the CI machine (CI_KEY); the ci.pub that clients
+trust must be its public half and must match the pinned fingerprint. These tests
+catch the drift that once left the CI signing with a key (6FC86DD...) different
+from the pinned trust root (7C3341...).
 """
 import base64
 import hashlib
@@ -11,7 +11,7 @@ import os
 
 REPO_ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
 CI_PUB = os.path.join(REPO_ROOT, "ci.pub")            # the distributed trust root
-KEYS_PUB = os.path.join(REPO_ROOT, "keys", "ci.pub")  # public half of the signing key
+KEYS_PUB = os.path.join(REPO_ROOT, "keys", "ci.pub")  # local signing key's public half, if any
 FINGERPRINT = os.path.join(REPO_ROOT, "ci.pub.fingerprint")
 
 
@@ -40,7 +40,11 @@ def _sha256(path):
 
 class TestTrustRoot:
     def test_distributed_key_matches_signing_key(self):
-        # The vendored ci.pub must BE the public half of the signing key.
+        # When this checkout also holds a signing key (keys/ci.pub, untracked),
+        # the vendored ci.pub must BE its public half. The key normally lives
+        # only on the CI machine, so most checkouts have nothing to compare.
+        if not os.path.exists(KEYS_PUB):
+            return
         with open(CI_PUB) as a, open(KEYS_PUB) as b:
             assert a.read() == b.read(), "ci.pub != keys/ci.pub (trust root drift!)"
 

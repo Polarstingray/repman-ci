@@ -183,16 +183,20 @@ The producer uses `name`/`version` here to compute the tag and release title.
 ## 7. Signing / trust root
 
 - Artifacts and `index.json` are signed with **minisign**.
-- The trust root is the public key `ci.pub`. The producer holds the private key
-  (`repman-ci/keys/ci.key`); the consumer verifies against `ci.pub`, which MUST
-  be the public half of that signing key (`repman-ci/keys/ci.pub`).
+- The trust root is the public key `ci.pub`. Its private half (`ci.key`) lives
+  **only on the CI machine**, at the path configured as `CI_KEY` (outside the
+  repman-ci install directory, never in any repository). `PUB_KEY1` on the CI
+  machine MUST be its public half.
+- The public key is published in the **packages** repository as `keys/ci.pub`
+  (the pipeline copies `PUB_KEY1` there on every publish); that file is what
+  `PUBKEY_URL` points at.
 - There is exactly **one** authoritative key. Its fingerprint is pinned in
   `ci.pub.fingerprint` (byte-identical in both repos):
 
   | field    | value |
   |----------|-------|
-  | `keyid`  | `7C3341BABBA99FE3` |
-  | `sha256` | `dc4fdca59180c5d4af9dfc8ef2766c414529e4f4880efb6a41e326e878059bee` |
+  | `keyid`  | `@NEW_KEYID@` |
+  | `sha256` | `@NEW_SHA256@` |
 
 - The consumer fetches the key via `repman fetch-key` from `PUBKEY_URL` and
   **verifies its key id against the pinned `keyid`**, refusing (and deleting) any
@@ -209,8 +213,8 @@ To rotate the trust root, the producer signs the **new** `ci.pub` with the
 **old** (currently trusted) private key and publishes two files:
 
 ```
-ci.pub            # the new public key            -> PUBKEY_URL
-ci.pub.minisig    # new ci.pub signed by old key  -> PUBKEY_MINISIG_URL
+keys/ci.pub            # the new public key            -> PUBKEY_URL
+keys/ci.pub.minisig    # new ci.pub signed by old key  -> PUBKEY_MINISIG_URL
 ```
 
 `repman update-key` downloads both, verifies the new key against the key it
@@ -219,6 +223,14 @@ key and advances its pinned fingerprint. An attacker without the old private key
 cannot forge the transition, so the trust root cannot be hijacked. Producer tool:
 `repman-ci/scripts/rotate_key.sh`. Retire the old signing key only after clients
 have rotated.
+
+### Trust-root history
+
+| keyid | status |
+|-------|--------|
+| `@NEW_KEYID@` | current (since 2026-11-22) |
+| `7C3341BABBA99FE3` | retired 2026-11-22: passphrase lost, so no chain-of-trust signature exists. Clients pinned to it must re-pin by hand (see the repman README). |
+| `6FC86DD0148ABAB2` | retired: the CI machine's former signing key, never pinned by clients. Do not trust. |
 
 ## 8. Index distribution
 
